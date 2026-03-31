@@ -55,6 +55,8 @@ class Device:
     use_wake_word: bool = True
     mic_capturing: bool = False
     log: List[str] = None
+    timer_alarm_active: bool = False
+    active_timer_count: int = 0
 
     def __post_init__(self):
         if self.log is None:
@@ -149,7 +151,9 @@ class Device:
     def center_touch(self):
         """Center touch button pressed"""
         self._log("center_touch")
-        if self.media_player == MediaPlayerState.PLAYING:
+        if self.timer_alarm_active:
+            self.dismiss_alarm()
+        elif self.media_player == MediaPlayerState.PLAYING:
             self.on_media_stop()
         elif self.voice_assistant != VoiceAssistantState.IDLE:
             self.voice_assistant = VoiceAssistantState.IDLE
@@ -176,6 +180,27 @@ class Device:
             self.stop_wake_word()
         else:
             self.start_wake_word()
+
+    def on_timer_started(self):
+        """Voice assistant timer started"""
+        self._log("on_timer_started")
+        self.active_timer_count += 1
+
+    def on_timer_finished(self):
+        """Voice assistant timer finished"""
+        self._log("on_timer_finished")
+        self.active_timer_count = max(0, self.active_timer_count - 1)
+        self.timer_alarm_active = True
+
+    def on_timer_cancelled(self):
+        """Voice assistant timer cancelled"""
+        self._log("on_timer_cancelled")
+        self.active_timer_count = max(0, self.active_timer_count - 1)
+
+    def dismiss_alarm(self):
+        """Center touch or HA dismisses alarm"""
+        self._log("dismiss_alarm")
+        self.timer_alarm_active = False
 
 
 # --- State transition tests ---
@@ -445,3 +470,101 @@ class TestCenterTouchBehavior:
         assert d.media_player == MediaPlayerState.IDLE
         # VA state unchanged by music stop
         assert d.voice_assistant == VoiceAssistantState.LISTENING
+
+
+class TestTimerTransitions:
+    """Timer lifecycle state transitions"""
+
+    def test_timer_start_increments_count(self):
+        d = Device()
+        d.on_timer_started()
+        assert d.active_timer_count == 1
+
+    def test_multiple_timers(self):
+        d = Device()
+        d.on_timer_started()
+        d.on_timer_started()
+        assert d.active_timer_count == 2
+
+    def test_timer_finished_activates_alarm(self):
+        d = Device()
+        d.on_timer_started()
+        d.on_timer_finished()
+        assert d.timer_alarm_active is True
+        assert d.active_timer_count == 0
+
+    def test_timer_cancel_decrements(self):
+        d = Device()
+        d.on_timer_started()
+        d.on_timer_started()
+        d.on_timer_cancelled()
+        assert d.active_timer_count == 1
+        assert d.timer_alarm_active is False
+
+    def test_dismiss_alarm_clears_state(self):
+        d = Device()
+        d.on_timer_started()
+        d.on_timer_finished()
+        d.dismiss_alarm()
+        assert d.timer_alarm_active is False
+
+    def test_center_touch_dismisses_alarm(self):
+        d = Device()
+        d.on_timer_started()
+        d.on_timer_finished()
+        assert d.timer_alarm_active is True
+        d.center_touch()
+        assert d.timer_alarm_active is False
+
+    def test_center_touch_alarm_priority_over_music(self):
+        """Alarm dismiss beats music stop"""
+        d = Device()
+        d.on_play_media()
+        d.on_timer_started()
+        d.on_timer_finished()
+        d.center_touch()
+        assert d.timer_alarm_active is False
+        # Music still playing
+        assert d.media_player == MediaPlayerState.PLAYING
+
+    def test_full_timer_lifecycle(self):
+        d = Device()
+        d.on_client_connected()
+        d.on_timer_started()
+        assert d.active_timer_count == 1
+        d.on_timer_finished()
+        assert d.timer_alarm_active is True
+        d.center_touch()
+        assert d.timer_alarm_active is False
+        assert d.mww == MWWState.RUNNING
+
+
+class TestVolumeClick:
+    """Volume click conditional behavior"""
+
+    def test_click_plays_when_idle(self):
+        d = Device()
+        should_click = d.media_player == MediaPlayerState.IDLE
+        assert should_click is True
+
+    def test_click_skipped_during_music(self):
+        d = Device()
+        d.on_play_media()
+        should_click = d.media_player == MediaPlayerState.IDLE
+        assert should_click is False
+
+    def test_click_skipped_during_tts(self):
+        d = Device()
+        d.on_client_connected()
+        d.on_wake_word_detected()
+        d.on_stt_vad_end()
+        d.on_tts_response()
+        should_click = d.media_player == MediaPlayerState.IDLE
+        assert should_click is False
+
+    def test_click_plays_after_music_stops(self):
+        d = Device()
+        d.on_play_media()
+        d.on_media_stop()
+        should_click = d.media_player == MediaPlayerState.IDLE
+        assert should_click is True
