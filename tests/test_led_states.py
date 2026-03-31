@@ -25,6 +25,12 @@ class LedColor(Enum):
     TEAL_PLAYING = "teal/speaking"                  # media playback
     WHITE_VOLUME = "white/show_volume"              # volume adjust
     RED_ERROR = "red/solid"                         # error
+    ORANGE_TIMER = "orange/show_timer"              # timer countdown bar
+    RED_ALARM = "red/pulse"                         # timer alarm
+    RAINBOW_PLAYING = "rainbow/rainbow"             # party: rainbow
+    FIRE_PLAYING = "fire/fire"                      # party: fire
+    CHASE_PLAYING = "chase/chase"                   # party: chase
+    STROBE_PLAYING = "strobe/strobe"                # party: strobe
 
 
 class MediaPlayerState(Enum):
@@ -50,30 +56,56 @@ class DeviceState:
     mute_switch: bool = False       # True = muted
     use_wake_word: bool = True
     flicker_wake_word: bool = True
-    music_light: bool = True
+    music_led_mode: str = "solid"       # off, solid, rainbow, fire, chase, strobe, cycle
+    timer_alarm_active: bool = False
+    active_timer_count: int = 0
+    volume_sound: bool = True
+    timer_led: bool = True
     mic_capturing: bool = False
 
 
 # --- Firmware logic simulation ---
 
 def reset_led(s: DeviceState) -> LedColor:
-    """Simulates the reset_led script from onju-voice.yaml"""
-    # Volume always wins
+    """Simulates the reset_led script from onju-voice.yaml
+
+    Priority: volume > timer_alarm > music > announcing > timer_countdown > wake_word > off
+    """
+    # 1. Volume always wins
     if s.showing_volume:
         return LedColor.WHITE_VOLUME
 
-    # Media playing
-    if s.media_player == MediaPlayerState.PLAYING:
-        if s.music_light:
-            return LedColor.TEAL_PLAYING
-        else:
-            return LedColor.OFF
+    # 2. Timer alarm
+    if s.timer_alarm_active:
+        return LedColor.RED_ALARM
 
-    # Announcing (TTS)
+    # 3. Media playing (party mode)
+    if s.media_player == MediaPlayerState.PLAYING:
+        mode = s.music_led_mode
+        if mode == "off":
+            return LedColor.OFF
+        elif mode == "solid":
+            return LedColor.TEAL_PLAYING
+        elif mode == "rainbow" or mode == "cycle":
+            return LedColor.RAINBOW_PLAYING
+        elif mode == "fire":
+            return LedColor.FIRE_PLAYING
+        elif mode == "chase":
+            return LedColor.CHASE_PLAYING
+        elif mode == "strobe":
+            return LedColor.STROBE_PLAYING
+        else:
+            return LedColor.TEAL_PLAYING
+
+    # 4. Announcing (TTS)
     if s.media_player == MediaPlayerState.ANNOUNCING:
         return LedColor.GREEN_SPEAKING
 
-    # Idle — wake word indicator
+    # 5. Timer countdown
+    if s.active_timer_count > 0 and s.timer_led:
+        return LedColor.ORANGE_TIMER
+
+    # 6. Wake word idle
     if s.use_wake_word and s.flicker_wake_word and not s.mute_switch:
         return LedColor.PURPLE_TWINKLE
 
