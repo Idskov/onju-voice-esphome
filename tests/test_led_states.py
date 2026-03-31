@@ -178,6 +178,28 @@ def center_touch(s: DeviceState) -> Optional[LedColor]:
         return LedColor.WHITE_LISTENING
 
 
+def timer_started(s: DeviceState) -> LedColor:
+    """Timer starts — show countdown if timer_led enabled"""
+    s.active_timer_count += 1
+    return reset_led(s)
+
+def timer_finished(s: DeviceState) -> LedColor:
+    """Timer finishes — alarm starts"""
+    s.active_timer_count = max(0, s.active_timer_count - 1)
+    s.timer_alarm_active = True
+    return reset_led(s)
+
+def timer_cancelled(s: DeviceState) -> LedColor:
+    """Timer cancelled via voice"""
+    s.active_timer_count = max(0, s.active_timer_count - 1)
+    return reset_led(s)
+
+def dismiss_alarm(s: DeviceState) -> LedColor:
+    """User dismisses alarm (center touch or HA)"""
+    s.timer_alarm_active = False
+    return reset_led(s)
+
+
 # --- Tests ---
 
 class TestResetLed:
@@ -385,6 +407,119 @@ class TestMuteSwitch:
         """Mute affects wake word LED, not media playback LED"""
         s = DeviceState(media_player=MediaPlayerState.PLAYING, mute_switch=True, music_led_mode="solid")
         assert reset_led(s) == LedColor.TEAL_PLAYING
+
+
+class TestPartyMode:
+    """Test music LED mode select behavior"""
+
+    def test_solid_mode(self):
+        s = DeviceState(media_player=MediaPlayerState.PLAYING, music_led_mode="solid")
+        assert reset_led(s) == LedColor.TEAL_PLAYING
+
+    def test_rainbow_mode(self):
+        s = DeviceState(media_player=MediaPlayerState.PLAYING, music_led_mode="rainbow")
+        assert reset_led(s) == LedColor.RAINBOW_PLAYING
+
+    def test_fire_mode(self):
+        s = DeviceState(media_player=MediaPlayerState.PLAYING, music_led_mode="fire")
+        assert reset_led(s) == LedColor.FIRE_PLAYING
+
+    def test_chase_mode(self):
+        s = DeviceState(media_player=MediaPlayerState.PLAYING, music_led_mode="chase")
+        assert reset_led(s) == LedColor.CHASE_PLAYING
+
+    def test_strobe_mode(self):
+        s = DeviceState(media_player=MediaPlayerState.PLAYING, music_led_mode="strobe")
+        assert reset_led(s) == LedColor.STROBE_PLAYING
+
+    def test_cycle_mode_starts_with_rainbow(self):
+        s = DeviceState(media_player=MediaPlayerState.PLAYING, music_led_mode="cycle")
+        assert reset_led(s) == LedColor.RAINBOW_PLAYING
+
+    def test_off_mode(self):
+        s = DeviceState(media_player=MediaPlayerState.PLAYING, music_led_mode="off")
+        assert reset_led(s) == LedColor.OFF
+
+    def test_mode_only_active_during_playback(self):
+        """Party effects don't show when music stops"""
+        s = DeviceState(media_player=MediaPlayerState.IDLE, music_led_mode="rainbow")
+        assert reset_led(s) == LedColor.PURPLE_TWINKLE
+
+    def test_mode_off_during_announcing(self):
+        s = DeviceState(media_player=MediaPlayerState.ANNOUNCING, music_led_mode="fire")
+        assert reset_led(s) == LedColor.GREEN_SPEAKING
+
+    def test_alarm_wins_over_party(self):
+        s = DeviceState(
+            media_player=MediaPlayerState.PLAYING,
+            music_led_mode="strobe",
+            timer_alarm_active=True,
+        )
+        assert reset_led(s) == LedColor.RED_ALARM
+
+
+class TestTimerLed:
+    """Test timer countdown and alarm LED states"""
+
+    def test_timer_shows_orange(self):
+        s = DeviceState()
+        assert timer_started(s) == LedColor.ORANGE_TIMER
+
+    def test_timer_countdown_hidden_when_disabled(self):
+        s = DeviceState(timer_led=False)
+        assert timer_started(s) == LedColor.PURPLE_TWINKLE
+
+    def test_alarm_shows_red(self):
+        s = DeviceState(active_timer_count=1)
+        assert timer_finished(s) == LedColor.RED_ALARM
+
+    def test_dismiss_alarm_returns_to_idle(self):
+        s = DeviceState(timer_alarm_active=True)
+        assert dismiss_alarm(s) == LedColor.PURPLE_TWINKLE
+
+    def test_dismiss_alarm_returns_to_timer_if_others_running(self):
+        s = DeviceState(timer_alarm_active=True, active_timer_count=1)
+        assert dismiss_alarm(s) == LedColor.ORANGE_TIMER
+
+    def test_alarm_during_music(self):
+        """Alarm wins over music"""
+        s = DeviceState(
+            media_player=MediaPlayerState.PLAYING,
+            active_timer_count=1,
+        )
+        assert timer_finished(s) == LedColor.RED_ALARM
+
+    def test_countdown_loses_to_music(self):
+        """Music wins over countdown"""
+        s = DeviceState(media_player=MediaPlayerState.PLAYING, music_led_mode="solid")
+        result = timer_started(s)
+        assert result == LedColor.TEAL_PLAYING
+
+    def test_volume_wins_over_alarm(self):
+        s = DeviceState(timer_alarm_active=True, showing_volume=True)
+        assert reset_led(s) == LedColor.WHITE_VOLUME
+
+    def test_cancel_removes_countdown(self):
+        s = DeviceState(active_timer_count=1)
+        assert timer_cancelled(s) == LedColor.PURPLE_TWINKLE
+
+    def test_multiple_timers_one_finishes(self):
+        """Two timers running, one finishes → alarm + one still counting"""
+        s = DeviceState(active_timer_count=2)
+        result = timer_finished(s)
+        assert result == LedColor.RED_ALARM
+        assert s.active_timer_count == 1
+        # After dismiss, countdown for remaining timer
+        assert dismiss_alarm(s) == LedColor.ORANGE_TIMER
+
+    def test_full_timer_lifecycle(self):
+        """Start → countdown → alarm → dismiss → idle"""
+        s = DeviceState()
+        assert reset_led(s) == LedColor.PURPLE_TWINKLE
+
+        assert timer_started(s) == LedColor.ORANGE_TIMER
+        assert timer_finished(s) == LedColor.RED_ALARM
+        assert dismiss_alarm(s) == LedColor.PURPLE_TWINKLE
 
 
 class TestExhaustive:
