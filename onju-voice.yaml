@@ -54,7 +54,7 @@ esphome:
       - script.execute: reset_led
 
 dashboard_import:
-  package_import_url: github://idskov/onju-voice-esphome/onju-voice.yaml@main
+  package_import_url: github://idskov/onju-voice-esphome/onju-voice.yaml@master
 
 esp32:
   board: esp32-s3-devkitc-1

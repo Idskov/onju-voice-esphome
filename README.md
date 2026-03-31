@@ -68,7 +68,7 @@ substitutions:
   friendly_name: Living Room Voice
 
 packages:
-  onju_voice: github://idskov/onju-voice-esphome/onju-voice.yaml@main
+  onju_voice: github://idskov/onju-voice-esphome/onju-voice.yaml@master
 
 esphome:
   name: ${name}
