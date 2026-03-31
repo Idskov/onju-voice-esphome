@@ -123,6 +123,7 @@ speaker:
     source_speakers:
       - id: announcement_speaker
       - id: media_speaker
+      - id: alert_speaker
 
 media_player:
   - platform: speaker
@@ -159,6 +160,15 @@ media_player:
     on_idle:
       - script.execute: start_wake_word
       - script.execute: reset_led
+
+# --- Alerts (RTTTL) ---
+# Routes through alert_speaker in the mixer.
+# Volume click plays only when media_player is idle (skip if busy).
+# Timer alarm queues behind active audio via mixer queue_mode.
+
+rtttl:
+  id: buzzer
+  speaker: alert_speaker
 
 # --- Wake word (on-device) ---
 
