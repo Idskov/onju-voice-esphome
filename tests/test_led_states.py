@@ -28,10 +28,6 @@ class LedColor(Enum):
     NO_CHANGE = "no_change"                           # va_active: don't touch LEDs
     ORANGE_TIMER = "orange/show_timer"              # timer countdown bar
     RED_ALARM = "red/pulse"                         # timer alarm
-    RAINBOW_PLAYING = "rainbow/rainbow"             # party: rainbow
-    FIRE_PLAYING = "fire/fire"                      # party: fire
-    CHASE_PLAYING = "chase/chase"                   # party: chase
-    STROBE_PLAYING = "strobe/strobe"                # party: strobe
 
 
 class MediaPlayerState(Enum):
@@ -57,7 +53,7 @@ class DeviceState:
     mute_switch: bool = False       # True = muted
     use_wake_word: bool = True
     flicker_wake_word: bool = True
-    music_led_mode: str = "solid"       # off, solid, rainbow, fire, chase, strobe, cycle
+    music_light: bool = True
     timer_alarm_active: bool = False
     active_timer_count: int = 0
     timer_led: bool = True
@@ -84,23 +80,12 @@ def reset_led(s: DeviceState) -> LedColor:
     if s.va_active:
         return LedColor.NO_CHANGE
 
-    # 4. Media playing (party mode)
+    # 4. Media playing
     if s.media_player == MediaPlayerState.PLAYING:
-        mode = s.music_led_mode
-        if mode == "off":
-            return LedColor.OFF
-        elif mode == "solid":
+        if s.music_light:
             return LedColor.TEAL_PLAYING
-        elif mode == "rainbow" or mode == "cycle":
-            return LedColor.RAINBOW_PLAYING
-        elif mode == "fire":
-            return LedColor.FIRE_PLAYING
-        elif mode == "chase":
-            return LedColor.CHASE_PLAYING
-        elif mode == "strobe":
-            return LedColor.STROBE_PLAYING
         else:
-            return LedColor.TEAL_PLAYING
+            return LedColor.OFF
 
     # 5. Announcing (TTS)
     if s.media_player == MediaPlayerState.ANNOUNCING:
@@ -222,12 +207,12 @@ class TestResetLed:
                 assert reset_led(s) == LedColor.WHITE_VOLUME, \
                     f"Volume should win over {mp}, mute={mute}"
 
-    def test_playing_with_solid_mode(self):
-        s = DeviceState(media_player=MediaPlayerState.PLAYING, music_led_mode="solid")
+    def test_playing_with_music_light(self):
+        s = DeviceState(media_player=MediaPlayerState.PLAYING, music_light=True)
         assert reset_led(s) == LedColor.TEAL_PLAYING
 
-    def test_playing_with_mode_off(self):
-        s = DeviceState(media_player=MediaPlayerState.PLAYING, music_led_mode="off")
+    def test_playing_without_music_light(self):
+        s = DeviceState(media_player=MediaPlayerState.PLAYING, music_light=False)
         assert reset_led(s) == LedColor.OFF
 
     def test_announcing(self):
@@ -356,8 +341,8 @@ class TestVolumeOverlay:
         # After timeout, should return to teal (not purple!)
         assert volume_timeout(s) == LedColor.TEAL_PLAYING
 
-    def test_volume_during_music_mode_off(self):
-        s = DeviceState(media_player=MediaPlayerState.PLAYING, music_led_mode="off")
+    def test_volume_during_music_light_off(self):
+        s = DeviceState(media_player=MediaPlayerState.PLAYING, music_light=False)
         assert volume_adjust(s) == LedColor.WHITE_VOLUME
         assert volume_timeout(s) == LedColor.OFF
 
@@ -414,57 +399,8 @@ class TestMuteSwitch:
 
     def test_mute_during_music_still_shows_teal(self):
         """Mute affects wake word LED, not media playback LED"""
-        s = DeviceState(media_player=MediaPlayerState.PLAYING, mute_switch=True, music_led_mode="solid")
+        s = DeviceState(media_player=MediaPlayerState.PLAYING, mute_switch=True, music_light=True)
         assert reset_led(s) == LedColor.TEAL_PLAYING
-
-
-class TestPartyMode:
-    """Test music LED mode select behavior"""
-
-    def test_solid_mode(self):
-        s = DeviceState(media_player=MediaPlayerState.PLAYING, music_led_mode="solid")
-        assert reset_led(s) == LedColor.TEAL_PLAYING
-
-    def test_rainbow_mode(self):
-        s = DeviceState(media_player=MediaPlayerState.PLAYING, music_led_mode="rainbow")
-        assert reset_led(s) == LedColor.RAINBOW_PLAYING
-
-    def test_fire_mode(self):
-        s = DeviceState(media_player=MediaPlayerState.PLAYING, music_led_mode="fire")
-        assert reset_led(s) == LedColor.FIRE_PLAYING
-
-    def test_chase_mode(self):
-        s = DeviceState(media_player=MediaPlayerState.PLAYING, music_led_mode="chase")
-        assert reset_led(s) == LedColor.CHASE_PLAYING
-
-    def test_strobe_mode(self):
-        s = DeviceState(media_player=MediaPlayerState.PLAYING, music_led_mode="strobe")
-        assert reset_led(s) == LedColor.STROBE_PLAYING
-
-    def test_cycle_mode_starts_with_rainbow(self):
-        s = DeviceState(media_player=MediaPlayerState.PLAYING, music_led_mode="cycle")
-        assert reset_led(s) == LedColor.RAINBOW_PLAYING
-
-    def test_off_mode(self):
-        s = DeviceState(media_player=MediaPlayerState.PLAYING, music_led_mode="off")
-        assert reset_led(s) == LedColor.OFF
-
-    def test_mode_only_active_during_playback(self):
-        """Party effects don't show when music stops"""
-        s = DeviceState(media_player=MediaPlayerState.IDLE, music_led_mode="rainbow")
-        assert reset_led(s) == LedColor.PURPLE_TWINKLE
-
-    def test_mode_off_during_announcing(self):
-        s = DeviceState(media_player=MediaPlayerState.ANNOUNCING, music_led_mode="fire")
-        assert reset_led(s) == LedColor.GREEN_SPEAKING
-
-    def test_alarm_wins_over_party(self):
-        s = DeviceState(
-            media_player=MediaPlayerState.PLAYING,
-            music_led_mode="strobe",
-            timer_alarm_active=True,
-        )
-        assert reset_led(s) == LedColor.RED_ALARM
 
 
 class TestTimerLed:
@@ -500,7 +436,7 @@ class TestTimerLed:
 
     def test_countdown_loses_to_music(self):
         """Music wins over countdown"""
-        s = DeviceState(media_player=MediaPlayerState.PLAYING, music_led_mode="solid")
+        s = DeviceState(media_player=MediaPlayerState.PLAYING, music_light=True)
         result = timer_started(s)
         assert result == LedColor.TEAL_PLAYING
 
@@ -538,14 +474,13 @@ class TestExhaustive:
         """No combination of core state should produce an unexpected result"""
         valid_leds = set(LedColor)
         tested = 0
-        modes = ["off", "solid", "rainbow", "fire", "chase", "strobe", "cycle"]
 
         for mp in MediaPlayerState:
             for vol in [True, False]:
                 for mute in [True, False]:
                     for ww in [True, False]:
                         for ww_light in [True, False]:
-                            for mode in modes:
+                            for m_light in [True, False]:
                                 for alarm in [True, False]:
                                     for timer_count in [0, 1]:
                                         for va in [True, False]:
@@ -555,7 +490,7 @@ class TestExhaustive:
                                                 mute_switch=mute,
                                                 use_wake_word=ww,
                                                 flicker_wake_word=ww_light,
-                                                music_led_mode=mode,
+                                                music_light=m_light,
                                                 timer_alarm_active=alarm,
                                                 active_timer_count=timer_count,
                                                 va_active=va,
@@ -565,8 +500,8 @@ class TestExhaustive:
                                                 f"Invalid LED {result} for state {s}"
                                             tested += 1
 
-        # 3 × 2 × 2 × 2 × 2 × 7 × 2 × 2 × 2 = 2688
-        assert tested == 2688
+        # 3 × 2 × 2 × 2 × 2 × 2 × 2 × 2 × 2 = 768
+        assert tested == 768
 
     def test_priority_order(self):
         """Verify: volume > alarm > va_active > playing > announcing > timer_countdown > wake_word > off"""
@@ -575,7 +510,7 @@ class TestExhaustive:
             showing_volume=True,
             use_wake_word=True,
             flicker_wake_word=True,
-            music_led_mode="rainbow",
+            music_light=True,
             timer_alarm_active=True,
             active_timer_count=1,
             va_active=True,
@@ -591,9 +526,9 @@ class TestExhaustive:
         s.timer_alarm_active = False
         assert reset_led(s) == LedColor.NO_CHANGE
 
-        # Music next (rainbow mode)
+        # Music next
         s.va_active = False
-        assert reset_led(s) == LedColor.RAINBOW_PLAYING
+        assert reset_led(s) == LedColor.TEAL_PLAYING
 
         # Announcing next
         s.media_player = MediaPlayerState.ANNOUNCING

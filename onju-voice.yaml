@@ -165,7 +165,6 @@ media_player:
 
 # --- Alerts (RTTTL) ---
 # Routes through alert_speaker in the mixer.
-# Volume click plays only when media_player is idle (skip if busy).
 # Timer alarm queues behind active audio via mixer queue_mode.
 
 rtttl:
@@ -343,40 +342,6 @@ light:
                 it[i] = Color(0, 0, 0);
               }
             }
-      - addressable_rainbow:
-          name: rainbow
-          speed: 10
-          width: 4
-      - addressable_lambda:
-          name: fire
-          update_interval: 50ms
-          lambda: |-
-            for (int i = 0; i < it.size(); i++) {
-              uint8_t flicker = 180 + (random() % 76);
-              it[i] = Color(flicker, flicker / 3, 0);
-            }
-      - addressable_scan:
-          name: chase
-          move_interval: 150ms
-          scan_width: 1
-      - addressable_lambda:
-          name: strobe
-          update_interval: 100ms
-          lambda: |-
-            static bool on = false;
-            on = !on;
-            if (on) {
-              uint8_t r = random() % 256;
-              uint8_t g = random() % 256;
-              uint8_t b = random() % 256;
-              for (int i = 0; i < it.size(); i++) {
-                it[i] = Color(r, g, b);
-              }
-            } else {
-              for (int i = 0; i < it.size(); i++) {
-                it[i] = Color::BLACK;
-              }
-            }
 
   - platform: partition
     id: right_led
@@ -509,6 +474,17 @@ switch:
       - script.execute: reset_led
 
   - platform: template
+    name: Music Playback Light
+    id: music_light
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    on_turn_on:
+      - script.execute: reset_led
+    on_turn_off:
+      - script.execute: reset_led
+
+  - platform: template
     name: Timer LED
     id: timer_led
     entity_category: config
@@ -525,29 +501,6 @@ switch:
     pin:
       number: GPIO21
       inverted: true
-
-# --- Music LED Mode ---
-
-select:
-  - platform: template
-    name: Music LED Mode
-    id: music_led_mode
-    icon: "mdi:led-strip-variant"
-    entity_category: config
-    optimistic: true
-    restore_value: true
-    options:
-      - "off"
-      - "solid"
-      - "rainbow"
-      - "fire"
-      - "chase"
-      - "strobe"
-      - "cycle"
-    initial_option: "solid"
-    on_value:
-      then:
-        - script.execute: reset_led
 
 # --- Settings ---
 
@@ -627,9 +580,15 @@ script:
                             then:
                               - if:
                                   condition:
-                                    lambda: return id(music_led_mode).current_option() != "off";
+                                    switch.is_on: music_light
                                   then:
-                                    - script.execute: apply_music_led
+                                    - light.turn_on:
+                                        id: top_led
+                                        blue: 100%
+                                        red: 0%
+                                        green: 60%
+                                        brightness: 50%
+                                        effect: speaking
                                   else:
                                     - light.turn_off: top_led
                             else:
@@ -742,43 +701,3 @@ script:
       - script.execute: reset_led
       - script.execute: start_wake_word
 
-  - id: apply_music_led
-    then:
-      - lambda: |-
-          auto mode = id(music_led_mode).current_option();
-          if (mode == "cycle") {
-            id(party_cycle).execute();
-            return;
-          }
-          auto call = id(top_led).turn_on();
-          call.set_brightness(1.0f);
-          if (mode == "solid") {
-            call.set_rgb(0.0f, 0.6f, 1.0f);
-            call.set_brightness(0.5f);
-            call.set_effect("speaking");
-          } else if (mode == "rainbow") {
-            call.set_effect("rainbow");
-          } else if (mode == "fire") {
-            call.set_effect("fire");
-          } else if (mode == "chase") {
-            call.set_effect("chase");
-          } else if (mode == "strobe") {
-            call.set_effect("strobe");
-          }
-          call.perform();
-
-  - id: party_cycle
-    mode: restart
-    then:
-      - while:
-          condition:
-            lambda: 'return id(music_led_mode).current_option() == "cycle" && id(onju_media_player).state == media_player::MediaPlayerState::MEDIA_PLAYER_STATE_PLAYING;'
-          then:
-            - light.turn_on: { id: top_led, brightness: 100%, effect: "rainbow" }
-            - delay: 30s
-            - light.turn_on: { id: top_led, brightness: 100%, effect: "fire" }
-            - delay: 30s
-            - light.turn_on: { id: top_led, brightness: 100%, effect: "chase" }
-            - delay: 30s
-            - light.turn_on: { id: top_led, brightness: 100%, effect: "strobe" }
-            - delay: 30s
