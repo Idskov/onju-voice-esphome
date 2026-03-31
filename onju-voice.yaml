@@ -639,6 +639,7 @@ script:
     mode: single
     then:
       - lambda: id(timer_alarm_active) = true;
+      - script.execute: stop_wake_word
       - script.execute: reset_led
       - while:
           condition:
@@ -656,6 +657,7 @@ script:
     then:
       - rtttl.stop:
       - lambda: id(timer_alarm_active) = false;
+      - script.execute: start_wake_word
       - script.execute: reset_led
 
   - id: start_wake_word
