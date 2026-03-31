@@ -191,12 +191,12 @@ class TestResetLed:
                 assert reset_led(s) == LedColor.WHITE_VOLUME, \
                     f"Volume should win over {mp}, mute={mute}"
 
-    def test_playing_with_music_light(self):
-        s = DeviceState(media_player=MediaPlayerState.PLAYING, music_light=True)
+    def test_playing_with_solid_mode(self):
+        s = DeviceState(media_player=MediaPlayerState.PLAYING, music_led_mode="solid")
         assert reset_led(s) == LedColor.TEAL_PLAYING
 
-    def test_playing_without_music_light(self):
-        s = DeviceState(media_player=MediaPlayerState.PLAYING, music_light=False)
+    def test_playing_with_mode_off(self):
+        s = DeviceState(media_player=MediaPlayerState.PLAYING, music_led_mode="off")
         assert reset_led(s) == LedColor.OFF
 
     def test_announcing(self):
@@ -325,8 +325,8 @@ class TestVolumeOverlay:
         # After timeout, should return to teal (not purple!)
         assert volume_timeout(s) == LedColor.TEAL_PLAYING
 
-    def test_volume_during_music_light_off(self):
-        s = DeviceState(media_player=MediaPlayerState.PLAYING, music_light=False)
+    def test_volume_during_music_mode_off(self):
+        s = DeviceState(media_player=MediaPlayerState.PLAYING, music_led_mode="off")
         assert volume_adjust(s) == LedColor.WHITE_VOLUME
         assert volume_timeout(s) == LedColor.OFF
 
@@ -383,7 +383,7 @@ class TestMuteSwitch:
 
     def test_mute_during_music_still_shows_teal(self):
         """Mute affects wake word LED, not media playback LED"""
-        s = DeviceState(media_player=MediaPlayerState.PLAYING, mute_switch=True)
+        s = DeviceState(media_player=MediaPlayerState.PLAYING, mute_switch=True, music_led_mode="solid")
         assert reset_led(s) == LedColor.TEAL_PLAYING
 
 
@@ -391,56 +391,71 @@ class TestExhaustive:
     """Exhaustive test: every combination must produce a valid LED state"""
 
     def test_all_combinations(self):
-        """No combination of state should produce an unexpected result"""
+        """No combination of core state should produce an unexpected result"""
         valid_leds = set(LedColor)
         tested = 0
+        modes = ["off", "solid", "rainbow", "fire", "chase", "strobe", "cycle"]
 
         for mp in MediaPlayerState:
             for vol in [True, False]:
                 for mute in [True, False]:
                     for ww in [True, False]:
                         for ww_light in [True, False]:
-                            for m_light in [True, False]:
-                                s = DeviceState(
-                                    media_player=mp,
-                                    showing_volume=vol,
-                                    mute_switch=mute,
-                                    use_wake_word=ww,
-                                    flicker_wake_word=ww_light,
-                                    music_light=m_light,
-                                )
-                                result = reset_led(s)
-                                assert result in valid_leds, \
-                                    f"Invalid LED {result} for state {s}"
-                                tested += 1
+                            for mode in modes:
+                                for alarm in [True, False]:
+                                    for timer_count in [0, 1]:
+                                        s = DeviceState(
+                                            media_player=mp,
+                                            showing_volume=vol,
+                                            mute_switch=mute,
+                                            use_wake_word=ww,
+                                            flicker_wake_word=ww_light,
+                                            music_led_mode=mode,
+                                            timer_alarm_active=alarm,
+                                            active_timer_count=timer_count,
+                                        )
+                                        result = reset_led(s)
+                                        assert result in valid_leds, \
+                                            f"Invalid LED {result} for state {s}"
+                                        tested += 1
 
-        # 3 media × 2 vol × 2 mute × 2 ww × 2 ww_light × 2 m_light = 96
-        assert tested == 96
+        # 3 × 2 × 2 × 2 × 2 × 7 × 2 × 2 = 1344
+        assert tested == 1344
 
     def test_priority_order(self):
-        """Verify: volume > playing > announcing > wake_word > off"""
-        # Everything on — volume should win
+        """Verify: volume > alarm > playing > announcing > timer_countdown > wake_word > off"""
         s = DeviceState(
             media_player=MediaPlayerState.PLAYING,
             showing_volume=True,
             use_wake_word=True,
             flicker_wake_word=True,
-            music_light=True,
+            music_led_mode="rainbow",
+            timer_alarm_active=True,
+            active_timer_count=1,
         )
+        # Volume wins
         assert reset_led(s) == LedColor.WHITE_VOLUME
 
-        # Volume off — playing should win
+        # Timer alarm next
         s.showing_volume = False
-        assert reset_led(s) == LedColor.TEAL_PLAYING
+        assert reset_led(s) == LedColor.RED_ALARM
 
-        # Not playing, announcing — announcing should win
+        # Music next (rainbow mode)
+        s.timer_alarm_active = False
+        assert reset_led(s) == LedColor.RAINBOW_PLAYING
+
+        # Announcing next
         s.media_player = MediaPlayerState.ANNOUNCING
         assert reset_led(s) == LedColor.GREEN_SPEAKING
 
-        # Not announcing — wake word should show
+        # Timer countdown next
         s.media_player = MediaPlayerState.IDLE
+        assert reset_led(s) == LedColor.ORANGE_TIMER
+
+        # Wake word next
+        s.active_timer_count = 0
         assert reset_led(s) == LedColor.PURPLE_TWINKLE
 
-        # Wake word off — LED off
+        # Off
         s.use_wake_word = False
         assert reset_led(s) == LedColor.OFF
