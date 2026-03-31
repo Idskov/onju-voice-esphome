@@ -341,7 +341,7 @@ light:
           update_interval: 50ms
           lambda: |-
             for (int i = 0; i < it.size(); i++) {
-              uint8_t flicker = random(180, 255);
+              uint8_t flicker = 180 + (random() % 76);
               it[i] = Color(flicker, flicker / 3, 0);
             }
       - addressable_scan:
@@ -355,9 +355,9 @@ light:
             static bool on = false;
             on = !on;
             if (on) {
-              uint8_t r = random(0, 255);
-              uint8_t g = random(0, 255);
-              uint8_t b = random(0, 255);
+              uint8_t r = random() % 256;
+              uint8_t g = random() % 256;
+              uint8_t b = random() % 256;
               for (int i = 0; i < it.size(); i++) {
                 it[i] = Color(r, g, b);
               }
@@ -611,7 +611,7 @@ script:
                       then:
                         - if:
                             condition:
-                              lambda: return id(music_led_mode).state != "off";
+                              lambda: return id(music_led_mode).current_option() != "off";
                             then:
                               - script.execute: apply_music_led
                             else:
@@ -734,7 +734,7 @@ script:
   - id: apply_music_led
     then:
       - lambda: |-
-          auto mode = id(music_led_mode).state;
+          auto mode = id(music_led_mode).current_option();
           if (mode == "cycle") {
             id(party_cycle).execute();
             return;
@@ -761,7 +761,7 @@ script:
     then:
       - while:
           condition:
-            lambda: 'return id(music_led_mode).state == "cycle" && id(onju_media_player).state == media_player::MediaPlayerState::MEDIA_PLAYER_STATE_PLAYING;'
+            lambda: 'return id(music_led_mode).current_option() == "cycle" && id(onju_media_player).state == media_player::MediaPlayerState::MEDIA_PLAYER_STATE_PLAYING;'
           then:
             - light.turn_on: { id: top_led, brightness: 100%, effect: "rainbow" }
             - delay: 30s
