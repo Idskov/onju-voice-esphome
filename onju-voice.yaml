@@ -23,7 +23,7 @@ esphome:
   min_version: 2026.3.0
   project:
     name: idskov.onju_voice
-    version: "1.0.0"
+    version: "1.1.0"
   platformio_options:
     board_build.flash_mode: dio
     board_build.arduino.memory_type: qio_opi
@@ -107,7 +107,7 @@ microphone:
 
 speaker:
   - platform: i2s_audio
-    id: onju_speaker
+    id: i2s_speaker
     i2s_audio_id: i2s_shared
     i2s_dout_pin: GPIO12
     dac_type: external
@@ -116,12 +116,29 @@ speaker:
     bits_per_sample: 32bit
     buffer_duration: 100ms
 
+  - platform: mixer
+    id: onju_mixer
+    output_speaker: i2s_speaker
+    queue_mode: true
+    source_speakers:
+      - id: announcement_speaker
+      - id: media_speaker
+
 media_player:
   - platform: speaker
     name: None
     id: onju_media_player
+    task_stack_in_psram: true
+    volume_increment: 0.05
+    volume_min: 0.0
+    volume_max: 1.0
     announcement_pipeline:
-      speaker: onju_speaker
+      speaker: announcement_speaker
+      format: FLAC
+      sample_rate: 16000
+      num_channels: 1
+    media_pipeline:
+      speaker: media_speaker
       format: FLAC
       sample_rate: 16000
       num_channels: 1
@@ -131,12 +148,14 @@ media_player:
             - microphone.is_capturing:
           then:
             - script.execute: stop_wake_word
-      - light.turn_on:
-          id: top_led
-          blue: 0%
-          red: 20%
-          green: 100%
-          effect: speaking
+      - script.execute: reset_led
+    on_play:
+      - if:
+          condition:
+            - microphone.is_capturing:
+          then:
+            - script.execute: stop_wake_word
+      - script.execute: reset_led
     on_idle:
       - script.execute: start_wake_word
       - script.execute: reset_led
@@ -169,6 +188,7 @@ voice_assistant:
     - script.execute: stop_wake_word
 
   on_listening:
+    - script.execute: push_to_talk_timeout
     - light.turn_on:
         id: top_led
         blue: 100%
@@ -178,6 +198,7 @@ voice_assistant:
         effect: listening
 
   on_stt_vad_end:
+    - script.stop: push_to_talk_timeout
     - light.turn_on:
         id: top_led
         blue: 100%
@@ -333,11 +354,22 @@ binary_sensor:
     threshold: 2000
     on_click:
       - if:
-          condition: voice_assistant.is_running
+          condition:
+            lambda: |-
+              return id(onju_media_player).state == media_player::MediaPlayerState::MEDIA_PLAYER_STATE_PLAYING;
           then:
-            - voice_assistant.stop:
+            - lambda: |-
+                id(onju_media_player)
+                  ->make_call()
+                  .set_command(media_player::MediaPlayerCommand::MEDIA_PLAYER_COMMAND_STOP)
+                  .perform();
           else:
-            - voice_assistant.start:
+            - if:
+                condition: voice_assistant.is_running
+                then:
+                  - voice_assistant.stop:
+                else:
+                  - voice_assistant.start:
 
   - platform: gpio
     id: mute_switch
@@ -366,6 +398,17 @@ switch:
   - platform: template
     name: Wake Word Listening Light
     id: flicker_wake_word
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    on_turn_on:
+      - script.execute: reset_led
+    on_turn_off:
+      - script.execute: reset_led
+
+  - platform: template
+    name: Music Playback Light
+    id: music_light
     entity_category: config
     optimistic: true
     restore_mode: RESTORE_DEFAULT_ON
@@ -420,20 +463,51 @@ script:
           else:
             - if:
                 condition:
-                  and:
-                    - switch.is_on: use_wake_word
-                    - switch.is_on: flicker_wake_word
-                    - binary_sensor.is_off: mute_switch
+                  lambda: |-
+                    return id(onju_media_player).state == media_player::MediaPlayerState::MEDIA_PLAYER_STATE_PLAYING;
                 then:
-                  - light.turn_on:
-                      id: top_led
-                      blue: 100%
-                      red: 100%
-                      green: 0%
-                      brightness: 60%
-                      effect: listening_ww
+                  - if:
+                      condition:
+                        switch.is_on: music_light
+                      then:
+                        - light.turn_on:
+                            id: top_led
+                            blue: 100%
+                            red: 0%
+                            green: 60%
+                            brightness: 50%
+                            effect: speaking
+                      else:
+                        - light.turn_off: top_led
                 else:
-                  - light.turn_off: top_led
+                  - if:
+                      condition:
+                        lambda: |-
+                          return id(onju_media_player).state == media_player::MediaPlayerState::MEDIA_PLAYER_STATE_ANNOUNCING;
+                      then:
+                        - light.turn_on:
+                            id: top_led
+                            blue: 0%
+                            red: 20%
+                            green: 100%
+                            effect: speaking
+                      else:
+                        - if:
+                            condition:
+                              and:
+                                - switch.is_on: use_wake_word
+                                - switch.is_on: flicker_wake_word
+                                - binary_sensor.is_off: mute_switch
+                            then:
+                              - light.turn_on:
+                                  id: top_led
+                                  blue: 100%
+                                  red: 100%
+                                  green: 0%
+                                  brightness: 60%
+                                  effect: listening_ww
+                            else:
+                              - light.turn_off: top_led
 
   - id: start_wake_word
     then:
@@ -469,3 +543,11 @@ script:
       - delay: 2s
       - lambda: id(showing_volume) = false;
       - script.execute: reset_led
+
+  - id: push_to_talk_timeout
+    mode: restart
+    then:
+      - delay: 15s
+      - voice_assistant.stop:
+      - script.execute: reset_led
+      - script.execute: start_wake_word

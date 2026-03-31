@@ -12,7 +12,7 @@ This config replaces [tetele's onju-voice-satellite](https://github.com/tetele/o
 - **Mute switch** — hardware mute button support
 - **LED feedback** — boot status, wake word listening, processing, speaking, volume level
 - **Follow-up conversation** — continue talking after a response without saying the wake word again
-- **Media player** — can receive TTS announcements from Home Assistant
+- **Media player** — music playback and TTS announcements from Home Assistant
 - **HA controls** — toggle wake word, listening light from Home Assistant
 
 ## What's different from tetele's config?
@@ -112,7 +112,8 @@ This is a hardware limitation of the original PCB design (no separate I2S buses,
 | Purple | Gentle twinkle | Listening for wake word |
 | White | Twinkle | Recording your voice |
 | Blue | Scan | Processing (STT + LLM) |
-| Green | Flicker | Speaking (playing response) |
+| Green | Flicker | Speaking (playing TTS response) |
+| Teal | Flicker | Playing media/music |
 | White | Proportional | Volume level (2s after adjustment) |
 | Off | — | Idle (wake word light disabled) |
 
@@ -123,7 +124,7 @@ This is a hardware limitation of the original PCB design (no separate I2S buses,
 | Use Wake Word | Switch | Enable/disable wake word detection |
 | Wake Word Listening Light | Switch | Toggle the purple listening LED |
 | Disable wake word | Binary sensor | Hardware mute switch state |
-| Media Player | Media player | For TTS announcements |
+| Media Player | Media player | Music playback and TTS announcements |
 
 ## Known issues
 
