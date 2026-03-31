@@ -159,9 +159,9 @@ voice_assistant:
   microphone: onju_mic
   media_player: onju_media_player
   micro_wake_word: mww
-  noise_suppression_level: 2
+  noise_suppression_level: 4
   auto_gain: 31dBFS
-  volume_multiplier: 3.0
+  volume_multiplier: 2.0
 
   on_client_connected:
     - script.execute: start_wake_word
