@@ -381,6 +381,24 @@ switch:
       number: GPIO21
       inverted: true
 
+# --- Settings ---
+
+number:
+  - platform: template
+    name: Noise Suppression Level
+    id: noise_suppression_setting
+    icon: "mdi:microphone-settings"
+    entity_category: config
+    initial_value: 4
+    min_value: 0
+    max_value: 4
+    step: 1
+    optimistic: true
+    restore_value: true
+    on_value:
+      then:
+        - lambda: id(va).set_noise_suppression_level((uint8_t)x);
+
 # --- Globals ---
 
 globals:
