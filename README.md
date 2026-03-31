@@ -2,30 +2,15 @@
 
 A native ESPHome firmware for the [Onju Voice](https://github.com/justLV/onju-voice) PCB, turning a Google Nest Mini (2nd gen) into a fully functional Home Assistant voice satellite.
 
-This config replaces [tetele's onju-voice-satellite](https://github.com/tetele/onju-voice-satellite), which stopped working with ESPHome 2025+ due to its dependency on the abandoned [gnumpi/esphome_audio](https://github.com/gnumpi/esphome_audio) library.
+Built on native ESPHome components with no external dependencies — works with the latest ESPHome releases.
 
 ## Features
 
-- **On-device wake word** via microWakeWord ("Okay Nabu", "Hey Jarvis")
-- **Voice assistant pipeline** — wake word, STT, conversation, TTS response
-- **Touch controls** — volume up/down with LED feedback, tap-to-talk
-- **Mute switch** — hardware mute button support
-- **LED feedback** — boot status, wake word listening, processing, speaking, volume level
-- **Follow-up conversation** — continue talking after a response without saying the wake word again
-- **Media player** — music playback and TTS announcements from Home Assistant
-- **HA controls** — toggle wake word, listening light from Home Assistant
-
-## What's different from tetele's config?
-
-| | tetele (broken) | This config |
-|---|---|---|
-| External deps | gnumpi/esphome_audio (dead) | None |
-| ESPHome version | Stuck on 2024.x | 2026.3+ |
-| Framework | ESP-IDF + adf_pipeline | ESP-IDF native |
-| Audio output | adf_pipeline media_player | speaker platform (2026 pattern) |
-| Touch | Broken on ESP-IDF 5.x | Fixed with delta thresholds |
-| Bus arbitration | Manual duplex hack | Native via media_player wrapper |
-| Volume LED | Basic | Nest Mini-style proportional display |
+- On-device wake word via microWakeWord
+- Voice assistant pipeline (wake word → STT → conversation → TTS)
+- Touch controls with LED feedback (volume, tap-to-talk, mute)
+- Follow-up conversation without repeating the wake word
+- Media player for music and TTS announcements from Home Assistant
 
 ## Prerequisites
 
