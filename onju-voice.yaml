@@ -519,13 +519,6 @@ switch:
     on_turn_off:
       - script.execute: reset_led
 
-  - platform: template
-    name: Volume Sound
-    id: volume_sound
-    entity_category: config
-    optimistic: true
-    restore_mode: RESTORE_DEFAULT_ON
-
   - platform: gpio
     id: dac_mute
     restore_mode: ALWAYS_OFF
@@ -733,14 +726,6 @@ script:
       - light.turn_on:
           id: top_led
           effect: show_volume
-      - if:
-          condition:
-            and:
-              - switch.is_on: volume_sound
-              - media_player.is_idle: onju_media_player
-          then:
-            - rtttl.play:
-                rtttl: "click:d=32,o=7,b=900:c"
 
   - id: show_volume_then_restore
     mode: restart

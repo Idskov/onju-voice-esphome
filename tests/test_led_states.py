@@ -60,7 +60,6 @@ class DeviceState:
     music_led_mode: str = "solid"       # off, solid, rainbow, fire, chase, strobe, cycle
     timer_alarm_active: bool = False
     active_timer_count: int = 0
-    volume_sound: bool = True
     timer_led: bool = True
     va_active: bool = False
     mic_capturing: bool = False

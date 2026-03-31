@@ -544,32 +544,3 @@ class TestTimerTransitions:
         assert d.mww == MWWState.RUNNING
 
 
-class TestVolumeClick:
-    """Volume click conditional behavior"""
-
-    def test_click_plays_when_idle(self):
-        d = Device()
-        should_click = d.media_player == MediaPlayerState.IDLE
-        assert should_click is True
-
-    def test_click_skipped_during_music(self):
-        d = Device()
-        d.on_play_media()
-        should_click = d.media_player == MediaPlayerState.IDLE
-        assert should_click is False
-
-    def test_click_skipped_during_tts(self):
-        d = Device()
-        d.on_client_connected()
-        d.on_wake_word_detected()
-        d.on_stt_vad_end()
-        d.on_tts_response()
-        should_click = d.media_player == MediaPlayerState.IDLE
-        assert should_click is False
-
-    def test_click_plays_after_music_stops(self):
-        d = Device()
-        d.on_play_media()
-        d.on_media_stop()
-        should_click = d.media_player == MediaPlayerState.IDLE
-        assert should_click is True
