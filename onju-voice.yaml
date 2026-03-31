@@ -144,6 +144,7 @@ media_player:
       sample_rate: 16000
       num_channels: 1
     on_announcement:
+      - lambda: id(va_active) = false;
       - if:
           condition:
             - microphone.is_capturing:
@@ -158,6 +159,7 @@ media_player:
             - script.execute: stop_wake_word
       - script.execute: reset_led
     on_idle:
+      - lambda: id(va_active) = false;
       - script.execute: start_wake_word
       - script.execute: reset_led
 
@@ -169,6 +171,7 @@ media_player:
 rtttl:
   id: buzzer
   speaker: alert_speaker
+  gain: 0.8
 
 # --- Wake word (on-device) ---
 
@@ -198,6 +201,7 @@ voice_assistant:
     - script.execute: stop_wake_word
 
   on_listening:
+    - lambda: id(va_active) = true;
     - script.execute: push_to_talk_timeout
     - light.turn_on:
         id: top_led
@@ -223,6 +227,7 @@ voice_assistant:
     []
 
   on_error:
+    - lambda: id(va_active) = false;
     - script.execute: reset_led
     - script.execute: start_wake_word
 
@@ -324,12 +329,18 @@ light:
               }
             }
             float fraction = min_total > 0 ? float(min_remaining) / float(min_total) : 0.0f;
-            int lit = int(fraction * it.size() + 0.5f);
+            // Proportional: map fraction to LEDs + brightness on partial LED
+            float led_value = fraction * it.size();
+            int full_leds = int(led_value);
+            float partial = led_value - full_leds;
             for (int i = 0; i < it.size(); i++) {
-              if (i < lit) {
+              if (i < full_leds) {
                 it[i] = Color(255, 140, 0);
+              } else if (i == full_leds) {
+                uint8_t br = uint8_t(partial * 255);
+                it[i] = Color(br, br * 140 / 255, 0);
               } else {
-                it[i] = Color(40, 20, 0);
+                it[i] = Color(0, 0, 0);
               }
             }
       - addressable_rainbow:
@@ -581,9 +592,15 @@ globals:
     restore_value: false
     initial_value: "0"
 
+  - id: va_active
+    type: bool
+    restore_value: false
+    initial_value: "false"
+
 # --- Scripts ---
 
 script:
+  # LED priority: volume > alarm > voice pipeline > music/announcing > timer countdown > wake word > off
   - id: reset_led
     then:
       - if:
@@ -606,59 +623,65 @@ script:
                 else:
                   - if:
                       condition:
-                        lambda: |-
-                          return id(onju_media_player).state == media_player::MediaPlayerState::MEDIA_PLAYER_STATE_PLAYING;
+                        lambda: return id(va_active);
                       then:
-                        - if:
-                            condition:
-                              lambda: return id(music_led_mode).current_option() != "off";
-                            then:
-                              - script.execute: apply_music_led
-                            else:
-                              - light.turn_off: top_led
+                        []
                       else:
                         - if:
                             condition:
                               lambda: |-
-                                return id(onju_media_player).state == media_player::MediaPlayerState::MEDIA_PLAYER_STATE_ANNOUNCING;
+                                return id(onju_media_player).state == media_player::MediaPlayerState::MEDIA_PLAYER_STATE_PLAYING;
                             then:
-                              - light.turn_on:
-                                  id: top_led
-                                  blue: 0%
-                                  red: 20%
-                                  green: 100%
-                                  effect: speaking
+                              - if:
+                                  condition:
+                                    lambda: return id(music_led_mode).current_option() != "off";
+                                  then:
+                                    - script.execute: apply_music_led
+                                  else:
+                                    - light.turn_off: top_led
                             else:
                               - if:
                                   condition:
-                                    and:
-                                      - lambda: return id(active_timer_count) > 0;
-                                      - switch.is_on: timer_led
+                                    lambda: |-
+                                      return id(onju_media_player).state == media_player::MediaPlayerState::MEDIA_PLAYER_STATE_ANNOUNCING;
                                   then:
                                     - light.turn_on:
                                         id: top_led
-                                        red: 100%
-                                        green: 60%
                                         blue: 0%
-                                        brightness: 70%
-                                        effect: show_timer
+                                        red: 20%
+                                        green: 100%
+                                        effect: speaking
                                   else:
                                     - if:
                                         condition:
                                           and:
-                                            - switch.is_on: use_wake_word
-                                            - switch.is_on: flicker_wake_word
-                                            - binary_sensor.is_off: mute_switch
+                                            - lambda: return id(active_timer_count) > 0;
+                                            - switch.is_on: timer_led
                                         then:
                                           - light.turn_on:
                                               id: top_led
-                                              blue: 100%
                                               red: 100%
-                                              green: 0%
-                                              brightness: 60%
-                                              effect: listening_ww
+                                              green: 60%
+                                              blue: 0%
+                                              brightness: 70%
+                                              effect: show_timer
                                         else:
-                                          - light.turn_off: top_led
+                                          - if:
+                                              condition:
+                                                and:
+                                                  - switch.is_on: use_wake_word
+                                                  - switch.is_on: flicker_wake_word
+                                                  - binary_sensor.is_off: mute_switch
+                                              then:
+                                                - light.turn_on:
+                                                    id: top_led
+                                                    blue: 100%
+                                                    red: 100%
+                                                    green: 0%
+                                                    brightness: 60%
+                                                    effect: listening_ww
+                                              else:
+                                                - light.turn_off: top_led
 
   - id: timer_alarm
     mode: single
@@ -671,7 +694,10 @@ script:
           then:
             - rtttl.play:
                 rtttl: "alarm:d=8,o=6,b=200:c,e,g,c7,p,c7,g,e,c"
-            - delay: 1500ms
+            - wait_until:
+                not:
+                  rtttl.is_playing:
+            - delay: 500ms
 
   - id: dismiss_alarm
     mode: single

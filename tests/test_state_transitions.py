@@ -57,6 +57,7 @@ class Device:
     log: List[str] = None
     timer_alarm_active: bool = False
     active_timer_count: int = 0
+    va_active: bool = False
 
     def __post_init__(self):
         if self.log is None:
@@ -94,6 +95,7 @@ class Device:
     def on_listening(self):
         """VA enters listening state"""
         self._log("on_listening")
+        self.va_active = True
         self.voice_assistant = VoiceAssistantState.LISTENING
 
     def on_stt_vad_end(self):
@@ -106,6 +108,7 @@ class Device:
     def on_tts_response(self):
         """TTS announcement starts playing"""
         self._log("on_announcement")
+        self.va_active = False
         self.voice_assistant = VoiceAssistantState.RESPONDING
         self.media_player = MediaPlayerState.ANNOUNCING
         self.i2s_user = I2SUser.SPEAKER
@@ -121,12 +124,14 @@ class Device:
     def on_va_error(self):
         """Voice assistant error"""
         self._log("on_error")
+        self.va_active = False
         self.voice_assistant = VoiceAssistantState.IDLE
         self.start_wake_word()
 
     def on_media_idle(self):
         """Media player finishes playback (speaker done)"""
         self._log("on_idle")
+        self.va_active = False
         self.media_player = MediaPlayerState.IDLE
         self.i2s_user = I2SUser.NONE
         self.voice_assistant = VoiceAssistantState.IDLE

@@ -25,6 +25,7 @@ class LedColor(Enum):
     TEAL_PLAYING = "teal/speaking"                  # media playback
     WHITE_VOLUME = "white/show_volume"              # volume adjust
     RED_ERROR = "red/solid"                         # error
+    NO_CHANGE = "no_change"                           # va_active: don't touch LEDs
     ORANGE_TIMER = "orange/show_timer"              # timer countdown bar
     RED_ALARM = "red/pulse"                         # timer alarm
     RAINBOW_PLAYING = "rainbow/rainbow"             # party: rainbow
@@ -61,6 +62,7 @@ class DeviceState:
     active_timer_count: int = 0
     volume_sound: bool = True
     timer_led: bool = True
+    va_active: bool = False
     mic_capturing: bool = False
 
 
@@ -69,7 +71,7 @@ class DeviceState:
 def reset_led(s: DeviceState) -> LedColor:
     """Simulates the reset_led script from onju-voice.yaml
 
-    Priority: volume > timer_alarm > music > announcing > timer_countdown > wake_word > off
+    Priority: volume > alarm > voice pipeline > music/announcing > timer countdown > wake word > off
     """
     # 1. Volume always wins
     if s.showing_volume:
@@ -79,7 +81,11 @@ def reset_led(s: DeviceState) -> LedColor:
     if s.timer_alarm_active:
         return LedColor.RED_ALARM
 
-    # 3. Media playing (party mode)
+    # 3. Voice pipeline active — don't overwrite listening/processing/responding LEDs
+    if s.va_active:
+        return LedColor.NO_CHANGE
+
+    # 4. Media playing (party mode)
     if s.media_player == MediaPlayerState.PLAYING:
         mode = s.music_led_mode
         if mode == "off":
@@ -97,15 +103,15 @@ def reset_led(s: DeviceState) -> LedColor:
         else:
             return LedColor.TEAL_PLAYING
 
-    # 4. Announcing (TTS)
+    # 5. Announcing (TTS)
     if s.media_player == MediaPlayerState.ANNOUNCING:
         return LedColor.GREEN_SPEAKING
 
-    # 5. Timer countdown
+    # 6. Timer countdown
     if s.active_timer_count > 0 and s.timer_led:
         return LedColor.ORANGE_TIMER
 
-    # 6. Wake word idle
+    # 7. Wake word idle
     if s.use_wake_word and s.flicker_wake_word and not s.mute_switch:
         return LedColor.PURPLE_TWINKLE
 
@@ -114,6 +120,7 @@ def reset_led(s: DeviceState) -> LedColor:
 
 def on_listening(s: DeviceState) -> LedColor:
     """Voice assistant enters listening state"""
+    s.va_active = True
     return LedColor.WHITE_LISTENING
 
 
@@ -124,8 +131,8 @@ def on_stt_vad_end(s: DeviceState) -> LedColor:
 
 def on_announcement(s: DeviceState) -> LedColor:
     """Media player starts announcement (TTS response)"""
-    # Firmware calls reset_led, which checks media_player state
     s.media_player = MediaPlayerState.ANNOUNCING
+    s.va_active = False
     return reset_led(s)
 
 
@@ -138,17 +145,20 @@ def on_play(s: DeviceState) -> LedColor:
 def on_idle_media(s: DeviceState) -> LedColor:
     """Media player returns to idle"""
     s.media_player = MediaPlayerState.IDLE
+    s.va_active = False
     return reset_led(s)
 
 
 def on_error(s: DeviceState) -> LedColor:
     """Voice assistant error — calls reset_led"""
+    s.va_active = False
     return reset_led(s)
 
 
 def on_ptt_timeout(s: DeviceState) -> LedColor:
     """Push-to-talk timeout — stops VA, calls reset_led + start_wake_word"""
     s.voice_assistant = VoiceAssistantState.IDLE
+    s.va_active = False
     return reset_led(s)
 
 
@@ -539,26 +549,28 @@ class TestExhaustive:
                             for mode in modes:
                                 for alarm in [True, False]:
                                     for timer_count in [0, 1]:
-                                        s = DeviceState(
-                                            media_player=mp,
-                                            showing_volume=vol,
-                                            mute_switch=mute,
-                                            use_wake_word=ww,
-                                            flicker_wake_word=ww_light,
-                                            music_led_mode=mode,
-                                            timer_alarm_active=alarm,
-                                            active_timer_count=timer_count,
-                                        )
-                                        result = reset_led(s)
-                                        assert result in valid_leds, \
-                                            f"Invalid LED {result} for state {s}"
-                                        tested += 1
+                                        for va in [True, False]:
+                                            s = DeviceState(
+                                                media_player=mp,
+                                                showing_volume=vol,
+                                                mute_switch=mute,
+                                                use_wake_word=ww,
+                                                flicker_wake_word=ww_light,
+                                                music_led_mode=mode,
+                                                timer_alarm_active=alarm,
+                                                active_timer_count=timer_count,
+                                                va_active=va,
+                                            )
+                                            result = reset_led(s)
+                                            assert result in valid_leds, \
+                                                f"Invalid LED {result} for state {s}"
+                                            tested += 1
 
-        # 3 × 2 × 2 × 2 × 2 × 7 × 2 × 2 = 1344
-        assert tested == 1344
+        # 3 × 2 × 2 × 2 × 2 × 7 × 2 × 2 × 2 = 2688
+        assert tested == 2688
 
     def test_priority_order(self):
-        """Verify: volume > alarm > playing > announcing > timer_countdown > wake_word > off"""
+        """Verify: volume > alarm > va_active > playing > announcing > timer_countdown > wake_word > off"""
         s = DeviceState(
             media_player=MediaPlayerState.PLAYING,
             showing_volume=True,
@@ -567,6 +579,7 @@ class TestExhaustive:
             music_led_mode="rainbow",
             timer_alarm_active=True,
             active_timer_count=1,
+            va_active=True,
         )
         # Volume wins
         assert reset_led(s) == LedColor.WHITE_VOLUME
@@ -575,8 +588,12 @@ class TestExhaustive:
         s.showing_volume = False
         assert reset_led(s) == LedColor.RED_ALARM
 
-        # Music next (rainbow mode)
+        # Voice pipeline next (no-op)
         s.timer_alarm_active = False
+        assert reset_led(s) == LedColor.NO_CHANGE
+
+        # Music next (rainbow mode)
+        s.va_active = False
         assert reset_led(s) == LedColor.RAINBOW_PLAYING
 
         # Announcing next
