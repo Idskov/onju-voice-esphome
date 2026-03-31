@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.2.0] - 2026-03-31
+
+### Added
+- **Voice timers** — LED countdown bar (orange), RTTTL alarm on finish, center touch to dismiss
+- **Volume click** — short RTTTL tone on volume change (skipped during playback)
+- **Party mode** — Music LED Mode select: off, solid, rainbow, fire, chase, strobe, cycle (30s rotation)
+- Timer LED switch (show/hide countdown)
+- Volume Sound switch (enable/disable click)
+- RTTTL component with alert_speaker mixer source
+
+### Changed
+- LED priority cascade updated: volume > alarm > music > announcing > timer > wake word > off
+- Music Playback Light switch replaced by Music LED Mode select entity
+
+### Removed
+- Music Playback Light switch (superseded by Music LED Mode select)
+
 ## [1.1.0] - 2026-03-31
 
 ### Added
