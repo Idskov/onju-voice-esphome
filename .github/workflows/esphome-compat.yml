@@ -1,0 +1,195 @@
+name: ESPHome Compatibility Check
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: compat
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  check-stable:
+    name: Check for new ESPHome stable release
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.compare.outputs.new_version }}
+      version: ${{ steps.compare.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+
+      - name: Get latest ESPHome release
+        id: latest
+        run: |
+          VERSION=$(curl -s https://api.github.com/repos/esphome/esphome/releases/latest \
+            | jq -r '.tag_name' | sed 's/^v//')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Compare with tracked version
+        id: compare
+        run: |
+          TRACKED=$(cat .esphome-compat-version)
+          LATEST=${{ steps.latest.outputs.version }}
+          echo "Tracked: $TRACKED"
+          echo "Latest:  $LATEST"
+          echo "version=$LATEST" >> "$GITHUB_OUTPUT"
+          if [ "$LATEST" != "$TRACKED" ]; then
+            echo "new_version=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "new_version=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  compile-stable:
+    name: Compile against ESPHome stable
+    needs: check-stable
+    if: needs.check-stable.outputs.new_version == 'true'
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/esphome/esphome:latest
+    outputs:
+      compile_outcome: ${{ steps.compile.outcome }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            .esphome
+          key: pio-esphome-stable-${{ hashFiles('onju-voice.yaml') }}
+
+      - name: Compile firmware
+        id: compile
+        continue-on-error: true
+        run: esphome compile onju-voice.yaml
+
+  handle-stable-result:
+    name: Handle stable compile result
+    needs: [check-stable, compile-stable]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.check-stable.outputs.version }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+          fetch-depth: 0
+
+      - name: Update compat file and open PR
+        if: needs.compile-stable.outputs.compile_outcome == 'success'
+        run: |
+          BRANCH="chore/esphome-compat-${VERSION}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          printf '%s' "$VERSION" > .esphome-compat-version
+          sed -i "s/min_version: .*/min_version: ${VERSION}/" onju-voice.yaml
+          git add .esphome-compat-version onju-voice.yaml
+          git commit -m "chore: update ESPHome compat to ${VERSION}"
+          git push origin "$BRANCH"
+          gh pr create \
+            --base dev \
+            --head "$BRANCH" \
+            --title "chore: update ESPHome compat to ${VERSION}" \
+            --body "ESPHome ${VERSION} was released and compiles successfully.
+
+This PR updates \`.esphome-compat-version\` and \`min_version\` in \`onju-voice.yaml\` to ${VERSION}.
+
+_Automated by the ESPHome compatibility workflow._"
+
+      - name: Open issue on compile failure
+        if: needs.compile-stable.outputs.compile_outcome == 'failure'
+        run: |
+          TITLE="Incompatible with ESPHome ${VERSION}"
+          EXISTING=$(gh issue list \
+            --search "$TITLE" \
+            --state open \
+            --json number \
+            --jq 'length')
+          if [ "$EXISTING" -gt 0 ]; then
+            echo "Issue already exists, skipping."
+          else
+            gh issue create \
+              --title "$TITLE" \
+              --label "bug" \
+              --body "The firmware failed to compile against ESPHome ${VERSION}.
+
+Please investigate the breaking change and update the code accordingly.
+
+_Automated by the ESPHome compatibility workflow._"
+          fi
+
+  compile-dev:
+    name: Compile against ESPHome dev
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/esphome/esphome:dev
+    outputs:
+      compile_outcome: ${{ steps.compile.outcome }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            .esphome
+          key: pio-esphome-dev-${{ hashFiles('onju-voice.yaml') }}
+
+      - name: Compile firmware
+        id: compile
+        continue-on-error: true
+        run: esphome compile onju-voice.yaml
+
+  handle-dev-result:
+    name: Handle dev compile result
+    needs: compile-dev
+    if: needs.compile-dev.outputs.compile_outcome == 'failure'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+
+      - name: Open early-warning issue
+        run: |
+          TITLE="Early warning: incompatible with ESPHome dev"
+          EXISTING=$(gh issue list \
+            --search "$TITLE" \
+            --state open \
+            --json number \
+            --jq 'length')
+          if [ "$EXISTING" -gt 0 ]; then
+            echo "Issue already exists, skipping."
+          else
+            gh issue create \
+              --title "$TITLE" \
+              --label "bug" \
+              --body "The firmware failed to compile against the ESPHome \`dev\` image.
+
+This is an early warning that an upcoming ESPHome release may break compatibility. Please investigate.
+
+_Automated by the ESPHome compatibility workflow._"
+          fi
