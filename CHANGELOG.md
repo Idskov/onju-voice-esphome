@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.1](https://github.com/Idskov/onju-voice-esphome/compare/v1.3.0...v1.3.1) (2026-04-01)
+
+
+### Bug Fixes
+
+* firmware build + release workflow consolidation ([4ba1b66](https://github.com/Idskov/onju-voice-esphome/commit/4ba1b669bc73ca3d33a8e49f2352068268c4aa45))
+* move firmware build into release workflow ([d7c6de9](https://github.com/Idskov/onju-voice-esphome/commit/d7c6de9603ab746e5bbfa3b7c7d6d899ebbbf5f7))
+
 ## [1.3.0](https://github.com/Idskov/onju-voice-esphome/compare/v1.2.0...v1.3.0) (2026-04-01)
 
 
