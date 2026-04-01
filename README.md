@@ -8,6 +8,7 @@ Built on native ESPHome components with no external dependencies — works with 
 
 - On-device wake word via microWakeWord
 - Voice assistant pipeline (wake word → STT → conversation → TTS)
+- Voice timers with LED countdown and alarm tone
 - Touch controls with LED feedback (volume, tap-to-talk, mute)
 - Follow-up conversation without repeating the wake word
 - Media player for music and TTS announcements from Home Assistant
@@ -85,7 +86,7 @@ This is a hardware limitation of the original PCB design (no separate I2S buses,
 |---------|--------|
 | **Left touch** | Volume down (hold to repeat) |
 | **Right touch** | Volume up (hold to repeat) |
-| **Center touch** | Push-to-talk (when wake word is off) |
+| **Center touch** | Push-to-talk / dismiss timer alarm / stop music |
 | **Mute switch** | Toggle wake word listening |
 
 ## LED states
@@ -99,6 +100,8 @@ This is a hardware limitation of the original PCB design (no separate I2S buses,
 | Blue | Scan | Processing (STT + LLM) |
 | Green | Flicker | Speaking (playing TTS response) |
 | Teal | Flicker | Playing media/music |
+| Orange | Proportional bar | Timer countdown (shrinks as time passes) |
+| Red | Pulse | Timer alarm (touch center to dismiss) |
 | White | Proportional | Volume level (2s after adjustment) |
 | Off | — | Idle (wake word light disabled) |
 
@@ -108,6 +111,8 @@ This is a hardware limitation of the original PCB design (no separate I2S buses,
 |--------|------|-------------|
 | Use Wake Word | Switch | Enable/disable wake word detection |
 | Wake Word Listening Light | Switch | Toggle the purple listening LED |
+| Music Playback Light | Switch | Toggle the teal LED during music |
+| Timer LED | Switch | Show/hide timer countdown bar |
 | Disable wake word | Binary sensor | Hardware mute switch state |
 | Media Player | Media player | Music playback and TTS announcements |
 
