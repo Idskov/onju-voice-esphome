@@ -4,6 +4,7 @@
 #
 # Works with ESPHome 2026.3+ using only native components.
 # No external dependencies, no abandoned libraries.
+# CI/CD: automated build validation, versioning, and firmware releases.
 #
 # Hardware: Onju Voice PCB (ESP32-S3) by justLV
 #   I2S: LRCLK=GPIO13, BCLK=GPIO18, DOUT=GPIO12, DIN=GPIO17
