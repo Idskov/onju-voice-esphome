@@ -507,6 +507,26 @@ switch:
       number: GPIO21
       inverted: true
 
+  - platform: template
+    name: "Alarm Enabled"
+    id: alarm_enabled
+    icon: "mdi:alarm"
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    on_turn_on:
+      - script.execute: alarm_confirm
+    on_turn_off:
+      - script.stop: alarm_ring
+      - rtttl.stop:
+      - lambda: |-
+          id(alarm_active) = false;
+          id(alarm_snoozed) = false;
+      - script.execute: start_wake_word
+      - lambda: |-
+          id(alarm_status).publish_state("idle");
+      - script.execute: reset_led
+
 # --- Settings ---
 
 number:
@@ -525,6 +545,56 @@ number:
       then:
         - lambda: id(va).set_noise_suppression_level((uint8_t)x);
 
+  - platform: template
+    name: "Alarm Hour"
+    id: alarm_hour
+    icon: "mdi:clock-outline"
+    entity_category: config
+    initial_value: 7
+    min_value: 0
+    max_value: 23
+    step: 1
+    optimistic: true
+    restore_value: true
+    on_value:
+      then:
+        - if:
+            condition:
+              switch.is_on: alarm_enabled
+            then:
+              - script.execute: alarm_confirm
+
+  - platform: template
+    name: "Alarm Minute"
+    id: alarm_minute
+    icon: "mdi:clock-outline"
+    entity_category: config
+    initial_value: 0
+    min_value: 0
+    max_value: 59
+    step: 1
+    optimistic: true
+    restore_value: true
+    on_value:
+      then:
+        - if:
+            condition:
+              switch.is_on: alarm_enabled
+            then:
+              - script.execute: alarm_confirm
+
+  - platform: template
+    name: "Alarm Snooze Minutes"
+    id: alarm_snooze_minutes
+    icon: "mdi:snooze"
+    entity_category: config
+    initial_value: 9
+    min_value: 1
+    max_value: 30
+    step: 1
+    optimistic: true
+    restore_value: true
+
 # --- Alarm status ---
 
 text_sensor:
@@ -533,6 +603,42 @@ text_sensor:
     name: "Alarm Status"
     icon: "mdi:alarm"
     update_interval: never
+
+# --- Alarm selects ---
+
+select:
+  - platform: template
+    name: "Alarm Tone"
+    id: alarm_tone
+    icon: "mdi:music-note"
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_option: "Classic Alarm"
+    options:
+      - "Classic Alarm"
+      - "Gentle Rise"
+      - "Morning Melody"
+      - "Reveille"
+      - "Crazy Rooster"
+      - "Midnight Driveby"
+      - "Angry Wasp"
+      - "Funeral March"
+      - "Drunk Clown"
+      - "Samba Wake"
+
+  - platform: template
+    name: "Alarm Dismiss Mode"
+    id: alarm_dismiss_mode
+    icon: "mdi:gesture-tap"
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_option: "Snooze + voice off"
+    options:
+      - "Snooze + voice off"
+      - "Snooze + long press off"
+      - "Off only"
 
 # --- Globals ---
 
@@ -736,4 +842,131 @@ script:
       - voice_assistant.stop:
       - script.execute: reset_led
       - script.execute: start_wake_word
+
+  - id: alarm_confirm
+    mode: restart
+    then:
+      - lambda: |-
+          char buf[16];
+          snprintf(buf, sizeof(buf), "set:%02.0f:%02.0f",
+                   id(alarm_hour).state, id(alarm_minute).state);
+          id(alarm_status).publish_state(buf);
+      - light.turn_on:
+          id: top_led
+          red: 0%
+          green: 100%
+          blue: 0%
+          brightness: 100%
+          effect: none
+      - delay: 2s
+      - script.execute: reset_led
+
+  - id: alarm_ring
+    mode: single
+    then:
+      - lambda: |-
+          id(alarm_active) = true;
+          id(alarm_snoozed) = false;
+      - if:
+          condition:
+            voice_assistant.is_running:
+          then:
+            - voice_assistant.stop:
+            - lambda: id(va_active) = false;
+      - if:
+          condition:
+            lambda: return id(timer_alarm_active);
+          then:
+            - script.execute: dismiss_alarm
+      - lambda: |-
+          id(onju_media_player)
+            ->make_call()
+            .set_command(media_player::MediaPlayerCommand::MEDIA_PLAYER_COMMAND_STOP)
+            .perform();
+      - script.execute: stop_wake_word
+      - lambda: |-
+          id(alarm_status).publish_state("ringing");
+      - script.execute: reset_led
+      - while:
+          condition:
+            lambda: return id(alarm_active);
+          then:
+            - rtttl.play:
+                rtttl: !lambda |-
+                  auto tone = id(alarm_tone).current_option();
+                  if (tone == "Gentle Rise") {
+                    return "gentle:d=4,o=5,b=100:c,p,e,p,g,p,c6,p,e6,p,g6";
+                  } else if (tone == "Morning Melody") {
+                    return "morning:d=4,o=5,b=140:e,f#,g#,a,b,a,g#,f#,e";
+                  } else if (tone == "Reveille") {
+                    return "reveille:d=8,o=5,b=140:g,c6,e6,c6,g,c6,e6,c6,g,c6,e6,g6,e6,c6";
+                  } else if (tone == "Crazy Rooster") {
+                    return "rooster:d=16,o=6,b=200:c,d#,f,g,a#,g,f,d#,c,p,8g5,8a#5,8c,8d#";
+                  } else if (tone == "Midnight Driveby") {
+                    return "driveby:d=4,o=4,b=180:16c5,16c5,16c5,8p,16c5,16c5,16c5,8p,2c5,2d5";
+                  } else if (tone == "Angry Wasp") {
+                    return "wasp:d=16,o=6,b=240:c,d,c,d,c,d,e,f,e,f,e,f,g,a,g,a";
+                  } else if (tone == "Funeral March") {
+                    return "funeral:d=4,o=5,b=60:c,p,8c,c,8e,d,8d,c,8e,4d";
+                  } else if (tone == "Drunk Clown") {
+                    return "clown:d=8,o=5,b=200:f#,a,4b,f#,a,4b,f#,a,b,c#6,d6,b,a,4g,e,g,4a,e,g,a,f#,4d";
+                  } else if (tone == "Samba Wake") {
+                    return "samba:d=8,o=5,b=180:c,p,c,16c,c,p,a4,p,a4,16a4,a4,p,g4";
+                  } else {
+                    return "alarm:d=8,o=6,b=200:c,e,g,c7,p,c7,g,e,c";
+                  }
+            - wait_until:
+                not:
+                  rtttl.is_playing:
+            - delay: 500ms
+
+  - id: alarm_snooze
+    mode: single
+    then:
+      - script.stop: alarm_ring
+      - rtttl.stop:
+      - lambda: |-
+          id(alarm_active) = false;
+          id(alarm_snoozed) = true;
+          auto now = id(ha_time).now();
+          int total_min = now.hour * 60 + now.minute + (int)id(alarm_snooze_minutes).state;
+          id(alarm_snooze_target_hour) = (total_min / 60) % 24;
+          id(alarm_snooze_target_min) = total_min % 60;
+          char buf[16];
+          snprintf(buf, sizeof(buf), "snoozed:%02d:%02d",
+                   id(alarm_snooze_target_hour), id(alarm_snooze_target_min));
+          id(alarm_status).publish_state(buf);
+      - light.turn_on:
+          id: top_led
+          red: 0%
+          green: 100%
+          blue: 0%
+          brightness: 100%
+          effect: none
+      - delay: 1s
+      - script.execute: start_wake_word
+      - script.execute: reset_led
+
+  - id: alarm_clock_dismiss
+    mode: single
+    then:
+      - script.stop: alarm_ring
+      - rtttl.stop:
+      - lambda: |-
+          id(alarm_active) = false;
+          id(alarm_snoozed) = false;
+      - if:
+          condition:
+            switch.is_on: alarm_enabled
+          then:
+            - lambda: |-
+                char buf[16];
+                snprintf(buf, sizeof(buf), "set:%02.0f:%02.0f",
+                         id(alarm_hour).state, id(alarm_minute).state);
+                id(alarm_status).publish_state(buf);
+          else:
+            - lambda: |-
+                id(alarm_status).publish_state("idle");
+      - script.execute: start_wake_word
+      - script.execute: reset_led
 
