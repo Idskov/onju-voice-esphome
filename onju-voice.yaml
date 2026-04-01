@@ -285,6 +285,10 @@ light:
           transition_length: 250ms
           update_interval: 250ms
       - pulse:
+          name: fast_blink
+          transition_length: 100ms
+          update_interval: 200ms
+      - pulse:
           name: slow_pulse
           transition_length: 1s
           update_interval: 2s
@@ -686,7 +690,7 @@ globals:
 # --- Scripts ---
 
 script:
-  # LED priority: volume > alarm > voice pipeline > music/announcing > timer countdown > wake word > off
+  # LED priority: volume > alarm clock > timer alarm > voice pipeline > music/announcing > timer countdown > wake word > off
   - id: reset_led
     then:
       - if:
@@ -697,7 +701,7 @@ script:
           else:
             - if:
                 condition:
-                  lambda: return id(timer_alarm_active);
+                  lambda: return id(alarm_active);
                 then:
                   - light.turn_on:
                       id: top_led
@@ -705,75 +709,87 @@ script:
                       green: 0%
                       blue: 0%
                       brightness: 100%
-                      effect: pulse
+                      effect: fast_blink
                 else:
                   - if:
                       condition:
-                        lambda: return id(va_active);
+                        lambda: return id(timer_alarm_active);
                       then:
-                        []
+                        - light.turn_on:
+                            id: top_led
+                            red: 100%
+                            green: 0%
+                            blue: 0%
+                            brightness: 100%
+                            effect: pulse
                       else:
                         - if:
                             condition:
-                              lambda: |-
-                                return id(onju_media_player).state == media_player::MediaPlayerState::MEDIA_PLAYER_STATE_PLAYING;
+                              lambda: return id(va_active);
                             then:
-                              - if:
-                                  condition:
-                                    switch.is_on: music_light
-                                  then:
-                                    - light.turn_on:
-                                        id: top_led
-                                        blue: 100%
-                                        red: 0%
-                                        green: 60%
-                                        brightness: 50%
-                                        effect: speaking
-                                  else:
-                                    - light.turn_off: top_led
+                              []
                             else:
                               - if:
                                   condition:
                                     lambda: |-
-                                      return id(onju_media_player).state == media_player::MediaPlayerState::MEDIA_PLAYER_STATE_ANNOUNCING;
+                                      return id(onju_media_player).state == media_player::MediaPlayerState::MEDIA_PLAYER_STATE_PLAYING;
                                   then:
-                                    - light.turn_on:
-                                        id: top_led
-                                        blue: 0%
-                                        red: 20%
-                                        green: 100%
-                                        effect: speaking
-                                  else:
                                     - if:
                                         condition:
-                                          and:
-                                            - lambda: return id(active_timer_count) > 0;
-                                            - switch.is_on: timer_led
+                                          switch.is_on: music_light
                                         then:
                                           - light.turn_on:
                                               id: top_led
-                                              red: 100%
+                                              blue: 100%
+                                              red: 0%
                                               green: 60%
+                                              brightness: 50%
+                                              effect: speaking
+                                        else:
+                                          - light.turn_off: top_led
+                                  else:
+                                    - if:
+                                        condition:
+                                          lambda: |-
+                                            return id(onju_media_player).state == media_player::MediaPlayerState::MEDIA_PLAYER_STATE_ANNOUNCING;
+                                        then:
+                                          - light.turn_on:
+                                              id: top_led
                                               blue: 0%
-                                              brightness: 70%
-                                              effect: show_timer
+                                              red: 20%
+                                              green: 100%
+                                              effect: speaking
                                         else:
                                           - if:
                                               condition:
                                                 and:
-                                                  - switch.is_on: use_wake_word
-                                                  - switch.is_on: flicker_wake_word
-                                                  - binary_sensor.is_off: mute_switch
+                                                  - lambda: return id(active_timer_count) > 0;
+                                                  - switch.is_on: timer_led
                                               then:
                                                 - light.turn_on:
                                                     id: top_led
-                                                    blue: 100%
                                                     red: 100%
-                                                    green: 0%
-                                                    brightness: 60%
-                                                    effect: listening_ww
+                                                    green: 60%
+                                                    blue: 0%
+                                                    brightness: 70%
+                                                    effect: show_timer
                                               else:
-                                                - light.turn_off: top_led
+                                                - if:
+                                                    condition:
+                                                      and:
+                                                        - switch.is_on: use_wake_word
+                                                        - switch.is_on: flicker_wake_word
+                                                        - binary_sensor.is_off: mute_switch
+                                                    then:
+                                                      - light.turn_on:
+                                                          id: top_led
+                                                          blue: 100%
+                                                          red: 100%
+                                                          green: 0%
+                                                          brightness: 60%
+                                                          effect: listening_ww
+                                                    else:
+                                                      - light.turn_off: top_led
 
   - id: timer_alarm
     mode: single
