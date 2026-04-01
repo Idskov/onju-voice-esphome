@@ -54,7 +54,7 @@ substitutions:
   friendly_name: Living Room Voice
 
 packages:
-  onju_voice: github://idskov/onju-voice-esphome/onju-voice.yaml@master
+  onju_voice: github://idskov/onju-voice-esphome/onju-voice.yaml@main
 
 esphome:
   name: ${name}
@@ -69,6 +69,8 @@ api:
   encryption:
     key: !secret api_encryption_key
 ```
+
+> **Note:** If your config references `ref: master`, update it to `ref: main`. The `master` branch is kept as a mirror for backward compatibility and will be removed after October 2026.
 
 ## Hardware limitations
 
