@@ -79,6 +79,7 @@ jobs:
   handle-stable-result:
     name: Handle stable compile result
     needs: [check-stable, compile-stable]
+    if: always() && needs.check-stable.outputs.new_version == 'true'
     runs-on: ubuntu-latest
     env:
       VERSION: ${{ needs.check-stable.outputs.version }}
