@@ -1,5 +1,7 @@
 # Onju Voice ESPHome
 
+[![CI](https://github.com/Idskov/onju-voice-esphome/actions/workflows/ci.yml/badge.svg)](https://github.com/Idskov/onju-voice-esphome/actions/workflows/ci.yml)
+
 A native ESPHome firmware for the [Onju Voice](https://github.com/justLV/onju-voice) PCB, turning a Google Nest Mini (2nd gen) into a fully functional Home Assistant voice satellite.
 
 Built on native ESPHome components with no external dependencies — works with the latest ESPHome releases.
@@ -43,6 +45,15 @@ After the device connects to WiFi, it will appear in ESPHome Dashboard. Click **
 After the first flash, all subsequent updates can be done wirelessly (OTA).
 
 If upgrading from tetele's config (which uses Arduino framework), OTA may fail due to the framework change. In that case, USB flash is required.
+
+### Pre-compiled firmware (no ESPHome needed)
+
+Download the latest firmware from [GitHub Releases](https://github.com/Idskov/onju-voice-esphome/releases):
+
+- **`.factory.bin`** — for first-time USB flash (includes bootloader)
+- **`.ota.bin`** — for OTA updates via device captive portal
+
+This lets you use the device without installing ESPHome.
 
 ### Manual YAML
 
