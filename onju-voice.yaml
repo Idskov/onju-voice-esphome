@@ -86,6 +86,10 @@ captive_portal:
 
 api:
 
+time:
+  - platform: homeassistant
+    id: ha_time
+
 # --- Audio ---
 # The Onju Voice has a shared I2S bus for both microphone and speaker.
 # They cannot run simultaneously — ESPHome handles bus arbitration via
@@ -521,6 +525,15 @@ number:
       then:
         - lambda: id(va).set_noise_suppression_level((uint8_t)x);
 
+# --- Alarm status ---
+
+text_sensor:
+  - platform: template
+    id: alarm_status
+    name: "Alarm Status"
+    icon: "mdi:alarm"
+    update_interval: never
+
 # --- Globals ---
 
 globals:
@@ -543,6 +556,26 @@ globals:
     type: bool
     restore_value: false
     initial_value: "false"
+
+  - id: alarm_active
+    type: bool
+    restore_value: false
+    initial_value: "false"
+
+  - id: alarm_snoozed
+    type: bool
+    restore_value: false
+    initial_value: "false"
+
+  - id: alarm_snooze_target_hour
+    type: int
+    restore_value: false
+    initial_value: "0"
+
+  - id: alarm_snooze_target_min
+    type: int
+    restore_value: false
+    initial_value: "0"
 
 # --- Scripts ---
 
