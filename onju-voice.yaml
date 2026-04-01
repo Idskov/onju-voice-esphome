@@ -423,29 +423,56 @@ binary_sensor:
     pin: GPIO3
     threshold: 2000
     on_click:
-      - if:
-          condition:
-            lambda: return id(timer_alarm_active);
-          then:
-            - script.execute: dismiss_alarm
-          else:
-            - if:
-                condition:
-                  lambda: |-
-                    return id(onju_media_player).state == media_player::MediaPlayerState::MEDIA_PLAYER_STATE_PLAYING;
-                then:
-                  - lambda: |-
-                      id(onju_media_player)
-                        ->make_call()
-                        .set_command(media_player::MediaPlayerCommand::MEDIA_PLAYER_COMMAND_STOP)
-                        .perform();
-                else:
-                  - if:
-                      condition: voice_assistant.is_running
-                      then:
-                        - voice_assistant.stop:
-                      else:
-                        - voice_assistant.start:
+      - min_length: 0ms
+        max_length: 1000ms
+        then:
+          # Short press cascade
+          - if:
+              condition:
+                lambda: return id(alarm_active);
+              then:
+                - if:
+                    condition:
+                      lambda: return id(alarm_dismiss_mode).current_option() == "Off only";
+                    then:
+                      - script.execute: alarm_clock_dismiss
+                    else:
+                      - script.execute: alarm_snooze
+              else:
+                - if:
+                    condition:
+                      lambda: return id(timer_alarm_active);
+                    then:
+                      - script.execute: dismiss_alarm
+                    else:
+                      - if:
+                          condition:
+                            lambda: |-
+                              return id(onju_media_player).state == media_player::MediaPlayerState::MEDIA_PLAYER_STATE_PLAYING;
+                          then:
+                            - lambda: |-
+                                id(onju_media_player)
+                                  ->make_call()
+                                  .set_command(media_player::MediaPlayerCommand::MEDIA_PLAYER_COMMAND_STOP)
+                                  .perform();
+                          else:
+                            - if:
+                                condition: voice_assistant.is_running
+                                then:
+                                  - voice_assistant.stop:
+                                else:
+                                  - voice_assistant.start:
+      - min_length: 1000ms
+        max_length: 5000ms
+        then:
+          # Long press: dismiss alarm in "Snooze + long press off" mode
+          - if:
+              condition:
+                lambda: |-
+                  return id(alarm_active) &&
+                         id(alarm_dismiss_mode).current_option() == "Snooze + long press off";
+              then:
+                - script.execute: alarm_clock_dismiss
 
   - platform: gpio
     id: mute_switch
