@@ -58,6 +58,8 @@ class Device:
     timer_alarm_active: bool = False
     active_timer_count: int = 0
     va_active: bool = False
+    alarm_active: bool = False
+    alarm_dismiss_mode: str = "Snooze + voice off"
 
     def __post_init__(self):
         if self.log is None:
@@ -153,10 +155,46 @@ class Device:
         self.i2s_user = I2SUser.NONE
         self.start_wake_word()
 
+    def center_touch_short(self):
+        """Short press (<1s) on center touch"""
+        self._log("center_touch_short")
+        if self.alarm_active:
+            if self.alarm_dismiss_mode == "Off only":
+                self.alarm_clock_dismiss()
+            else:
+                self.alarm_snooze()
+        elif self.timer_alarm_active:
+            self.dismiss_alarm()
+        elif self.media_player == MediaPlayerState.PLAYING:
+            self.on_media_stop()
+        elif self.voice_assistant != VoiceAssistantState.IDLE:
+            self.voice_assistant = VoiceAssistantState.IDLE
+            self.mic_capturing = False
+        else:
+            self.on_listening()
+
+    def center_touch_long(self):
+        """Long press (>1s) on center touch"""
+        self._log("center_touch_long")
+        if self.alarm_active and self.alarm_dismiss_mode == "Snooze + long press off":
+            self.alarm_clock_dismiss()
+
+    def alarm_snooze(self):
+        """Snooze the alarm clock"""
+        self._log("alarm_snooze")
+        self.alarm_active = False
+
+    def alarm_clock_dismiss(self):
+        """Dismiss the alarm clock"""
+        self._log("alarm_clock_dismiss")
+        self.alarm_active = False
+
     def center_touch(self):
-        """Center touch button pressed"""
+        """Center touch button pressed (legacy — delegates to short press)"""
         self._log("center_touch")
-        if self.timer_alarm_active:
+        if self.alarm_active:
+            self.alarm_clock_dismiss()
+        elif self.timer_alarm_active:
             self.dismiss_alarm()
         elif self.media_player == MediaPlayerState.PLAYING:
             self.on_media_stop()
@@ -544,3 +582,45 @@ class TestTimerTransitions:
         assert d.mww == MWWState.RUNNING
 
 
+class TestAlarmClockTouch:
+    """Center touch behavior when alarm clock is ringing."""
+
+    def test_short_press_snooze_voice_off_mode(self):
+        d = Device(alarm_active=True, alarm_dismiss_mode="Snooze + voice off")
+        d.center_touch_short()
+        assert d.alarm_active is False
+        assert "alarm_snooze" in d.log
+
+    def test_short_press_snooze_long_press_mode(self):
+        d = Device(alarm_active=True, alarm_dismiss_mode="Snooze + long press off")
+        d.center_touch_short()
+        assert d.alarm_active is False
+        assert "alarm_snooze" in d.log
+
+    def test_long_press_dismiss_in_long_press_mode(self):
+        d = Device(alarm_active=True, alarm_dismiss_mode="Snooze + long press off")
+        d.center_touch_long()
+        assert d.alarm_active is False
+        assert "alarm_clock_dismiss" in d.log
+
+    def test_long_press_no_action_in_voice_off_mode(self):
+        d = Device(alarm_active=True, alarm_dismiss_mode="Snooze + voice off")
+        d.center_touch_long()
+        assert d.alarm_active is True  # Not dismissed
+
+    def test_short_press_off_only_mode(self):
+        d = Device(alarm_active=True, alarm_dismiss_mode="Off only")
+        d.center_touch_short()
+        assert d.alarm_active is False
+        assert "alarm_clock_dismiss" in d.log
+
+    def test_alarm_beats_timer_alarm(self):
+        d = Device(alarm_active=True, timer_alarm_active=True, alarm_dismiss_mode="Off only")
+        d.center_touch_short()
+        assert "alarm_clock_dismiss" in d.log
+        assert "dismiss_alarm" not in d.log
+
+    def test_no_alarm_falls_through_to_timer(self):
+        d = Device(alarm_active=False, timer_alarm_active=True)
+        d.center_touch_short()
+        assert "dismiss_alarm" in d.log
