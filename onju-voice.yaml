@@ -85,10 +85,53 @@ wifi:
 captive_portal:
 
 api:
+  services:
+    - service: set_alarm
+      variables:
+        hour: int
+        minute: int
+      then:
+        - lambda: |-
+            int h = std::max(0, std::min(23, hour));
+            int m = std::max(0, std::min(59, minute));
+            auto call_h = id(alarm_hour).make_call();
+            call_h.set_value(h);
+            call_h.perform();
+            auto call_m = id(alarm_minute).make_call();
+            call_m.set_value(m);
+            call_m.perform();
+        - switch.turn_on: alarm_enabled
+        - script.execute: alarm_confirm
+
+    - service: cancel_alarm
+      then:
+        - switch.turn_off: alarm_enabled
 
 time:
   - platform: homeassistant
     id: ha_time
+    on_time:
+      - seconds: 0
+        minutes: '*'
+        then:
+          - lambda: |-
+              // Guard: skip if time not yet synced from HA
+              if (id(ha_time).now().year < 2025) return;
+              auto now = id(ha_time).now();
+              int h = now.hour;
+              int m = now.minute;
+              // Normal alarm check
+              if (id(alarm_enabled).state && !id(alarm_active) && !id(alarm_snoozed)) {
+                if (h == (int)id(alarm_hour).state && m == (int)id(alarm_minute).state) {
+                  id(alarm_ring).execute();
+                }
+              }
+              // Snooze re-trigger check
+              if (id(alarm_snoozed) && !id(alarm_active)) {
+                if (h == id(alarm_snooze_target_hour) && m == id(alarm_snooze_target_min)) {
+                  id(alarm_ring).execute();
+                }
+              }
 
 # --- Audio ---
 # The Onju Voice has a shared I2S bus for both microphone and speaker.
