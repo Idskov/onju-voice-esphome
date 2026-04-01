@@ -107,32 +107,20 @@ jobs:
             --base dev \
             --head "$BRANCH" \
             --title "chore: update ESPHome compat to ${VERSION}" \
-            --body "ESPHome ${VERSION} was released and compiles successfully.
-
-This PR updates \`.esphome-compat-version\` and \`min_version\` in \`onju-voice.yaml\` to ${VERSION}.
-
-_Automated by the ESPHome compatibility workflow._"
+            --body "ESPHome ${VERSION} compiles successfully. Updates compat tracking and min_version."
 
       - name: Open issue on compile failure
         if: needs.compile-stable.outputs.compile_outcome == 'failure'
         run: |
           TITLE="Incompatible with ESPHome ${VERSION}"
-          EXISTING=$(gh issue list \
-            --search "$TITLE" \
-            --state open \
-            --json number \
-            --jq 'length')
+          EXISTING=$(gh issue list --search "$TITLE" --state open --json number --jq 'length')
           if [ "$EXISTING" -gt 0 ]; then
             echo "Issue already exists, skipping."
           else
             gh issue create \
               --title "$TITLE" \
               --label "bug" \
-              --body "The firmware failed to compile against ESPHome ${VERSION}.
-
-Please investigate the breaking change and update the code accordingly.
-
-_Automated by the ESPHome compatibility workflow._"
+              --body "Firmware failed to compile against ESPHome ${VERSION}. Investigate and fix."
           fi
 
   compile-dev:
@@ -169,28 +157,15 @@ _Automated by the ESPHome compatibility workflow._"
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          ref: dev
-
       - name: Open early-warning issue
         run: |
           TITLE="Early warning: incompatible with ESPHome dev"
-          EXISTING=$(gh issue list \
-            --search "$TITLE" \
-            --state open \
-            --json number \
-            --jq 'length')
+          EXISTING=$(gh issue list --repo "$GITHUB_REPOSITORY" --search "$TITLE" --state open --json number --jq 'length')
           if [ "$EXISTING" -gt 0 ]; then
             echo "Issue already exists, skipping."
           else
-            gh issue create \
+            gh issue create --repo "$GITHUB_REPOSITORY" \
               --title "$TITLE" \
               --label "bug" \
-              --body "The firmware failed to compile against the ESPHome \`dev\` image.
-
-This is an early warning that an upcoming ESPHome release may break compatibility. Please investigate.
-
-_Automated by the ESPHome compatibility workflow._"
+              --body "Firmware failed to compile against ESPHome dev. Upcoming release may break compatibility."
           fi
