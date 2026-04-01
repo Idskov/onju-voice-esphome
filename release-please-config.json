@@ -4,10 +4,7 @@
     ".": {
       "release-type": "simple",
       "extra-files": [
-        {
-          "type": "generic",
-          "path": "onju-voice.yaml"
-        }
+        "onju-voice.yaml"
       ],
       "changelog-path": "CHANGELOG.md",
       "include-component-in-tag": false
