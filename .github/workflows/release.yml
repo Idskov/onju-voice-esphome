@@ -26,3 +26,77 @@ jobs:
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+  build-firmware:
+    name: Build firmware binaries
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/esphome/esphome:latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            .esphome
+          key: pio-firmware-${{ needs.release-please.outputs.tag_name }}
+          restore-keys: pio-firmware-
+
+      - name: Build firmware
+        run: esphome compile onju-voice.yaml
+
+      - name: Find and rename binaries
+        run: |
+          VERSION="${{ needs.release-please.outputs.tag_name }}"
+          echo "Searching for compiled binaries..."
+          find .esphome/build -name "*.bin" -type f | head -20
+          BUILD_DIR=$(find .esphome/build -name ".pioenvs" -type d | head -1)
+          if [ -z "$BUILD_DIR" ]; then
+            echo "ERROR: Could not find PlatformIO build directory"
+            exit 1
+          fi
+          DEVICE_DIR=$(ls "$BUILD_DIR" | head -1)
+          echo "Build dir: $BUILD_DIR/$DEVICE_DIR"
+          ls -la "$BUILD_DIR/$DEVICE_DIR/"
+          cp "$BUILD_DIR/$DEVICE_DIR/firmware.bin" \
+             "onju-voice-${VERSION}.ota.bin"
+          FACTORY=$(find "$BUILD_DIR/$DEVICE_DIR" -name "*.factory.bin" | head -1)
+          if [ -n "$FACTORY" ]; then
+            cp "$FACTORY" "onju-voice-${VERSION}.factory.bin"
+          else
+            echo "WARNING: No factory binary found. OTA binary only."
+          fi
+
+      - name: Upload binaries as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware
+          path: onju-voice-*.bin
+          if-no-files-found: error
+
+  upload-firmware:
+    name: Attach binaries to release
+    needs: [release-please, build-firmware]
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download firmware artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: firmware
+
+      - name: Upload to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          ls -la onju-voice-*.bin
+          gh release upload "${{ needs.release-please.outputs.tag_name }}" \
+            onju-voice-*.bin \
+            --clobber
