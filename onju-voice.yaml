@@ -476,7 +476,7 @@ binary_sensor:
               then:
                 - if:
                     condition:
-                      lambda: return id(alarm_dismiss_mode).current_option() == "Off only";
+                      lambda: return id(alarm_dismiss_mode).current_option() == "Touch = stop";
                     then:
                       - script.execute: alarm_clock_dismiss
                     else:
@@ -508,12 +508,12 @@ binary_sensor:
       - min_length: 1000ms
         max_length: 5000ms
         then:
-          # Long press: dismiss alarm in "Snooze + long press off" mode
+          # Long press: dismiss alarm in "Touch = snooze, hold = stop" mode
           - if:
               condition:
                 lambda: |-
                   return id(alarm_active) &&
-                         id(alarm_dismiss_mode).current_option() == "Snooze + long press off";
+                         id(alarm_dismiss_mode).current_option() == "Touch = snooze, hold = stop";
               then:
                 - script.execute: alarm_clock_dismiss
 
@@ -624,6 +624,7 @@ number:
     id: alarm_hour
     icon: "mdi:clock-outline"
     entity_category: config
+    mode: box
     initial_value: 7
     min_value: 0
     max_value: 23
@@ -643,6 +644,7 @@ number:
     id: alarm_minute
     icon: "mdi:clock-outline"
     entity_category: config
+    mode: box
     initial_value: 0
     min_value: 0
     max_value: 59
@@ -708,11 +710,11 @@ select:
     entity_category: config
     optimistic: true
     restore_value: true
-    initial_option: "Snooze + voice off"
+    initial_option: "Touch = snooze, voice = stop"
     options:
-      - "Snooze + voice off"
-      - "Snooze + long press off"
-      - "Off only"
+      - "Touch = snooze, voice = stop"
+      - "Touch = snooze, hold = stop"
+      - "Touch = stop"
 
 # --- Globals ---
 
