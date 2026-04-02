@@ -503,6 +503,8 @@ binary_sensor:
                                 condition: voice_assistant.is_running
                                 then:
                                   - voice_assistant.stop:
+                                  - lambda: id(va_active) = false;
+                                  - script.execute: reset_led
                                 else:
                                   - voice_assistant.start:
       - min_length: 1000ms
@@ -593,6 +595,7 @@ switch:
     on_turn_off:
       - script.stop: alarm_ring
       - rtttl.stop:
+      - light.turn_off: top_led
       - lambda: |-
           id(alarm_active) = false;
           id(alarm_snoozed) = false;
@@ -1055,6 +1058,7 @@ script:
     then:
       - script.stop: alarm_ring
       - rtttl.stop:
+      - light.turn_off: top_led
       - lambda: |-
           id(alarm_active) = false;
           id(alarm_snoozed) = true;
@@ -1082,6 +1086,7 @@ script:
     then:
       - script.stop: alarm_ring
       - rtttl.stop:
+      - light.turn_off: top_led
       - lambda: |-
           id(alarm_active) = false;
           id(alarm_snoozed) = false;
