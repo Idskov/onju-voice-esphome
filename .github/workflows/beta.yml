@@ -1,0 +1,83 @@
+name: Beta firmware
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'onju-voice.yaml'
+
+concurrency:
+  group: beta
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build beta firmware
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/esphome/esphome:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            .esphome
+          key: pio-beta-${{ hashFiles('onju-voice.yaml') }}
+          restore-keys: pio-beta-
+
+      - name: Build firmware
+        run: esphome compile onju-voice.yaml
+
+      - name: Extract version
+        id: version
+        run: |
+          VERSION=$(grep 'project_version:' onju-voice.yaml | head -1 | sed 's/.*: *"\(.*\)"/\1/')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Building version: $VERSION"
+
+      - name: Find and rename binaries
+        run: |
+          BUILD_DIR=$(find .esphome/build -name ".pioenvs" -type d | head -1)
+          DEVICE_DIR=$(ls "$BUILD_DIR" | head -1)
+          cp "$BUILD_DIR/$DEVICE_DIR/firmware.bin" "onju-voice-beta.ota.bin"
+          FACTORY=$(find "$BUILD_DIR/$DEVICE_DIR" -name "*.factory.bin" | head -1)
+          if [ -n "$FACTORY" ]; then
+            cp "$FACTORY" "onju-voice-beta.factory.bin"
+          fi
+
+      - name: Update beta release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          COMMIT=$(git rev-parse --short HEAD)
+          BODY="Pre-release beta firmware built from \`dev\` branch.
+
+          **Version:** ${VERSION}
+          **Commit:** ${COMMIT}
+          **Built:** $(date -u '+%Y-%m-%d %H:%M UTC')
+
+          These binaries are tested locally before push but are not officially released.
+          For stable firmware, see the [latest release](https://github.com/${{ github.repository }}/releases/latest).
+
+          | File | Use |
+          |------|-----|
+          | \`onju-voice-beta.ota.bin\` | OTA update via captive portal |
+          | \`onju-voice-beta.factory.bin\` | First-time USB flash |"
+
+          # Delete existing beta release if it exists
+          gh release delete beta --yes 2>/dev/null || true
+          git push origin :refs/tags/beta 2>/dev/null || true
+
+          # Create new beta release
+          gh release create beta \
+            --title "Beta — ${VERSION} (${COMMIT})" \
+            --notes "$BODY" \
+            --prerelease \
+            onju-voice-beta.*.bin
