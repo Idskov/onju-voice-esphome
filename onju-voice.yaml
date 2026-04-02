@@ -713,12 +713,16 @@ text_sensor:
     name: "Timer Status"
     icon: "mdi:timer-outline"
     update_interval: never
+    lambda: |-
+      return {"idle"};
 
   - platform: template
     id: alarm_status
     name: "Alarm Status"
     icon: "mdi:alarm"
     update_interval: never
+    lambda: |-
+      return {"idle"};
 
 # --- Alarm selects ---
 
