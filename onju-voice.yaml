@@ -630,6 +630,7 @@ switch:
       - script.execute: start_wake_word
       - lambda: |-
           id(alarm_status).publish_state("idle");
+          global_preferences->sync();
       - script.execute: reset_led
 
 # --- Settings ---
@@ -1020,6 +1021,8 @@ script:
           snprintf(buf, sizeof(buf), "set:%02.0f:%02.0f",
                    id(alarm_hour).state, id(alarm_minute).state);
           id(alarm_status).publish_state(buf);
+          // Force NVS flush so alarm survives power loss
+          global_preferences->sync();
       - light.turn_on:
           id: top_led
           red: 0%
