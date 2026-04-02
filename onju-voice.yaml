@@ -92,8 +92,8 @@ api:
         minute: int
       then:
         - lambda: |-
-            int h = std::max(0, std::min(23, hour));
-            int m = std::max(0, std::min(59, minute));
+            int h = std::max(0, std::min(23, (int)hour));
+            int m = std::max(0, std::min(59, (int)minute));
             auto call_h = id(alarm_hour).make_call();
             call_h.set_value(h);
             call_h.perform();
