@@ -665,6 +665,7 @@ number:
     restore_value: true
     on_value:
       then:
+        - lambda: global_preferences->sync();
         - if:
             condition:
               switch.is_on: alarm_enabled
@@ -685,6 +686,7 @@ number:
     restore_value: true
     on_value:
       then:
+        - lambda: global_preferences->sync();
         - if:
             condition:
               switch.is_on: alarm_enabled
@@ -1021,8 +1023,6 @@ script:
           snprintf(buf, sizeof(buf), "set:%02.0f:%02.0f",
                    id(alarm_hour).state, id(alarm_minute).state);
           id(alarm_status).publish_state(buf);
-          // Force NVS flush so alarm survives power loss
-          global_preferences->sync();
       - light.turn_on:
           id: top_led
           red: 0%
