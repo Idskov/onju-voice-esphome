@@ -58,6 +58,10 @@ class Device:
     timer_alarm_active: bool = False
     active_timer_count: int = 0
     va_active: bool = False
+    alarm_active: bool = False
+    alarm_snoozed: bool = False
+    alarm_enabled: bool = False
+    alarm_dismiss_mode: str = "Touch = snooze, voice = stop"
 
     def __post_init__(self):
         if self.log is None:
@@ -153,10 +157,70 @@ class Device:
         self.i2s_user = I2SUser.NONE
         self.start_wake_word()
 
+    def center_touch_short(self):
+        """Short press (<1s) on center touch"""
+        self._log("center_touch_short")
+        if self.alarm_active:
+            if self.alarm_dismiss_mode == "Touch = stop":
+                self.alarm_clock_dismiss()
+            else:
+                self.alarm_snooze()
+        elif self.timer_alarm_active:
+            self.dismiss_alarm()
+        elif self.media_player == MediaPlayerState.PLAYING:
+            self.on_media_stop()
+        elif self.voice_assistant != VoiceAssistantState.IDLE:
+            self.voice_assistant = VoiceAssistantState.IDLE
+            self.mic_capturing = False
+        else:
+            self.on_listening()
+
+    def center_touch_long(self):
+        """Long press (>1s) on center touch"""
+        self._log("center_touch_long")
+        if (self.alarm_active or self.alarm_snoozed) and self.alarm_dismiss_mode == "Touch = snooze, hold = stop":
+            self.alarm_clock_dismiss()
+
+    def alarm_enable(self):
+        """Enable the alarm clock"""
+        self._log("alarm_enable")
+        self.alarm_enabled = True
+
+    def alarm_disable(self):
+        """Disable the alarm clock — full cleanup"""
+        self._log("alarm_disable")
+        self.alarm_enabled = False
+        self.alarm_active = False
+        self.alarm_snoozed = False
+        self.start_wake_word()
+
+    def alarm_ring(self):
+        """Alarm clock triggers"""
+        self._log("alarm_ring")
+        self.alarm_active = True
+        self.alarm_snoozed = False
+        self.stop_wake_word()
+
+    def alarm_snooze(self):
+        """Snooze the alarm clock"""
+        self._log("alarm_snooze")
+        self.alarm_active = False
+        self.alarm_snoozed = True
+        self.start_wake_word()
+
+    def alarm_clock_dismiss(self):
+        """Dismiss the alarm clock"""
+        self._log("alarm_clock_dismiss")
+        self.alarm_active = False
+        self.alarm_snoozed = False
+        self.start_wake_word()
+
     def center_touch(self):
-        """Center touch button pressed"""
+        """Center touch button pressed (legacy — delegates to short press)"""
         self._log("center_touch")
-        if self.timer_alarm_active:
+        if self.alarm_active:
+            self.alarm_clock_dismiss()
+        elif self.timer_alarm_active:
             self.dismiss_alarm()
         elif self.media_player == MediaPlayerState.PLAYING:
             self.on_media_stop()
@@ -544,3 +608,181 @@ class TestTimerTransitions:
         assert d.mww == MWWState.RUNNING
 
 
+class TestAlarmClockTouch:
+    """Center touch behavior when alarm clock is ringing."""
+
+    def test_short_press_snooze_voice_off_mode(self):
+        d = Device(alarm_active=True, alarm_dismiss_mode="Touch = snooze, voice = stop")
+        d.center_touch_short()
+        assert d.alarm_active is False
+        assert d.alarm_snoozed is True
+        assert "alarm_snooze" in d.log
+
+    def test_short_press_snooze_long_press_mode(self):
+        d = Device(alarm_active=True, alarm_dismiss_mode="Touch = snooze, hold = stop")
+        d.center_touch_short()
+        assert d.alarm_active is False
+        assert d.alarm_snoozed is True
+        assert "alarm_snooze" in d.log
+
+    def test_long_press_dismiss_in_long_press_mode(self):
+        d = Device(alarm_active=True, alarm_dismiss_mode="Touch = snooze, hold = stop")
+        d.center_touch_long()
+        assert d.alarm_active is False
+        assert d.alarm_snoozed is False
+        assert "alarm_clock_dismiss" in d.log
+
+    def test_long_press_no_action_in_voice_off_mode(self):
+        d = Device(alarm_active=True, alarm_dismiss_mode="Touch = snooze, voice = stop")
+        d.center_touch_long()
+        assert d.alarm_active is True  # Not dismissed
+
+    def test_short_press_off_only_mode(self):
+        d = Device(alarm_active=True, alarm_dismiss_mode="Touch = stop")
+        d.center_touch_short()
+        assert d.alarm_active is False
+        assert d.alarm_snoozed is False
+        assert "alarm_clock_dismiss" in d.log
+
+    def test_alarm_beats_timer_alarm(self):
+        d = Device(alarm_active=True, timer_alarm_active=True, alarm_dismiss_mode="Touch = stop")
+        d.center_touch_short()
+        assert "alarm_clock_dismiss" in d.log
+        assert "dismiss_alarm" not in d.log
+
+    def test_no_alarm_falls_through_to_timer(self):
+        d = Device(alarm_active=False, timer_alarm_active=True)
+        d.center_touch_short()
+        assert "dismiss_alarm" in d.log
+
+    def test_long_press_dismiss_while_snoozed(self):
+        """Long press dismisses alarm even during snooze (not just ringing)"""
+        d = Device(alarm_snoozed=True, alarm_dismiss_mode="Touch = snooze, hold = stop")
+        d.center_touch_long()
+        assert d.alarm_snoozed is False
+        assert "alarm_clock_dismiss" in d.log
+
+    def test_long_press_no_action_when_not_snoozed_or_ringing(self):
+        d = Device(alarm_active=False, alarm_snoozed=False, alarm_dismiss_mode="Touch = snooze, hold = stop")
+        d.center_touch_long()
+        assert "alarm_clock_dismiss" not in d.log
+
+
+class TestAlarmClockLifecycle:
+    """Full alarm clock state machine lifecycle tests."""
+
+    def test_set_ring_dismiss(self):
+        """Basic: enable → ring → dismiss → back to enabled"""
+        d = Device(use_wake_word=True)
+        d.on_client_connected()
+        assert d.mww == MWWState.RUNNING
+
+        d.alarm_enable()
+        assert d.alarm_enabled is True
+
+        d.alarm_ring()
+        assert d.alarm_active is True
+        assert d.mww == MWWState.STOPPED
+
+        d.alarm_clock_dismiss()
+        assert d.alarm_active is False
+        assert d.alarm_snoozed is False
+        assert d.alarm_enabled is True  # Still enabled for next day
+        assert d.mww == MWWState.RUNNING
+
+    def test_set_ring_snooze_rering_dismiss(self):
+        """Full snooze cycle: ring → snooze → re-ring → dismiss"""
+        d = Device(use_wake_word=True)
+        d.on_client_connected()
+        d.alarm_enable()
+
+        d.alarm_ring()
+        assert d.alarm_active is True
+        assert d.mww == MWWState.STOPPED
+
+        d.alarm_snooze()
+        assert d.alarm_active is False
+        assert d.alarm_snoozed is True
+        assert d.mww == MWWState.RUNNING
+
+        # Snooze target reached — re-ring
+        d.alarm_ring()
+        assert d.alarm_active is True
+        assert d.alarm_snoozed is False
+        assert d.mww == MWWState.STOPPED
+
+        d.alarm_clock_dismiss()
+        assert d.alarm_active is False
+        assert d.alarm_snoozed is False
+        assert d.mww == MWWState.RUNNING
+
+    def test_disable_while_ringing(self):
+        """Toggling alarm_enabled off while ringing clears all state"""
+        d = Device(use_wake_word=True)
+        d.on_client_connected()
+        d.alarm_enable()
+        d.alarm_ring()
+        assert d.alarm_active is True
+
+        d.alarm_disable()
+        assert d.alarm_active is False
+        assert d.alarm_snoozed is False
+        assert d.alarm_enabled is False
+        assert d.mww == MWWState.RUNNING
+
+    def test_disable_while_snoozed(self):
+        """Toggling alarm_enabled off while snoozed clears snooze state"""
+        d = Device(use_wake_word=True)
+        d.on_client_connected()
+        d.alarm_enable()
+        d.alarm_ring()
+        d.alarm_snooze()
+        assert d.alarm_snoozed is True
+
+        d.alarm_disable()
+        assert d.alarm_active is False
+        assert d.alarm_snoozed is False
+        assert d.alarm_enabled is False
+        assert d.mww == MWWState.RUNNING
+
+    def test_multiple_snoozes(self):
+        """Multiple snooze cycles before dismiss"""
+        d = Device(use_wake_word=True)
+        d.on_client_connected()
+        d.alarm_enable()
+
+        for _ in range(3):
+            d.alarm_ring()
+            assert d.alarm_active is True
+            d.alarm_snooze()
+            assert d.alarm_snoozed is True
+
+        d.alarm_ring()
+        d.alarm_clock_dismiss()
+        assert d.alarm_active is False
+        assert d.alarm_snoozed is False
+        assert d.alarm_enabled is True
+
+    def test_alarm_ring_stops_wake_word(self):
+        """Alarm ring must stop MWW (shared I2S bus)"""
+        d = Device(use_wake_word=True)
+        d.on_client_connected()
+        assert d.mww == MWWState.RUNNING
+
+        d.alarm_ring()
+        assert d.mww == MWWState.STOPPED
+
+    def test_alarm_dismiss_restarts_wake_word(self):
+        """After dismiss, MWW restarts if conditions are met"""
+        d = Device(use_wake_word=True)
+        d.on_client_connected()
+        d.alarm_ring()
+        d.alarm_clock_dismiss()
+        assert d.mww == MWWState.RUNNING
+
+    def test_alarm_dismiss_no_mww_when_muted(self):
+        """After dismiss with mute on, MWW stays stopped"""
+        d = Device(use_wake_word=True, mute_switch=True)
+        d.alarm_ring()
+        d.alarm_clock_dismiss()
+        assert d.mww == MWWState.STOPPED

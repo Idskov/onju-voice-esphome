@@ -79,6 +79,10 @@ wifi:
 api:
   encryption:
     key: !secret api_encryption_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
 ```
 
 > **Note:** If your config references `ref: master`, update it to `ref: main`. The `master` branch is kept as a mirror for backward compatibility and will be removed after October 2026.
@@ -136,10 +140,10 @@ This is a hardware limitation of the original PCB design (no separate I2S buses,
 
 ## Credits
 
-- [Justin Alvey](https://github.com/justLV) (@justLV) for the excellent Onju Voice PCB
-- [Tudor Olariu](https://github.com/tetele) (@tetele) for the original ESPHome config that inspired this work
+- [@justLV](https://github.com/justLV) for the excellent Onju Voice PCB
+- [@tetele](https://github.com/tetele) for the original ESPHome config that inspired this work
+- [@kahrendt](https://github.com/kahrendt) for microWakeWord
 - The ESPHome and Home Assistant teams for the voice assistant platform
-- [Kevin Ahrendt](https://github.com/kahrendt) for microWakeWord
 
 ## License
 
