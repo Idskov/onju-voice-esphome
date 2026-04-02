@@ -27,6 +27,8 @@ Download firmware from [GitHub Releases](https://github.com/Idskov/onju-voice-es
 | `.factory.bin` | First-time USB flash (includes bootloader + partition table) |
 | `.ota.bin` | OTA updates via the device's captive portal |
 
+**Beta firmware:** Tested but unreleased builds are available from the [beta pre-release](https://github.com/Idskov/onju-voice-esphome/releases/tag/beta). These are built automatically when the dev branch is updated.
+
 **OTA via captive portal:**
 
 1. Download the `.ota.bin` from the latest release
