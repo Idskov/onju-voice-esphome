@@ -178,7 +178,7 @@ class Device:
     def center_touch_long(self):
         """Long press (>1s) on center touch"""
         self._log("center_touch_long")
-        if self.alarm_active and self.alarm_dismiss_mode == "Touch = snooze, hold = stop":
+        if (self.alarm_active or self.alarm_snoozed) and self.alarm_dismiss_mode == "Touch = snooze, hold = stop":
             self.alarm_clock_dismiss()
 
     def alarm_enable(self):
@@ -654,6 +654,18 @@ class TestAlarmClockTouch:
         d = Device(alarm_active=False, timer_alarm_active=True)
         d.center_touch_short()
         assert "dismiss_alarm" in d.log
+
+    def test_long_press_dismiss_while_snoozed(self):
+        """Long press dismisses alarm even during snooze (not just ringing)"""
+        d = Device(alarm_snoozed=True, alarm_dismiss_mode="Touch = snooze, hold = stop")
+        d.center_touch_long()
+        assert d.alarm_snoozed is False
+        assert "alarm_clock_dismiss" in d.log
+
+    def test_long_press_no_action_when_not_snoozed_or_ringing(self):
+        d = Device(alarm_active=False, alarm_snoozed=False, alarm_dismiss_mode="Touch = snooze, hold = stop")
+        d.center_touch_long()
+        assert "alarm_clock_dismiss" not in d.log
 
 
 class TestAlarmClockLifecycle:

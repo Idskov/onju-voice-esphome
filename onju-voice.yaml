@@ -508,11 +508,11 @@ binary_sensor:
       - min_length: 1000ms
         max_length: 5000ms
         then:
-          # Long press: dismiss alarm in "Touch = snooze, hold = stop" mode
+          # Long press: dismiss alarm (ringing or snoozed) in "hold = stop" mode
           - if:
               condition:
                 lambda: |-
-                  return id(alarm_active) &&
+                  return (id(alarm_active) || id(alarm_snoozed)) &&
                          id(alarm_dismiss_mode).current_option() == "Touch = snooze, hold = stop";
               then:
                 - script.execute: alarm_clock_dismiss
