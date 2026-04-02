@@ -619,18 +619,19 @@ switch:
     optimistic: true
     restore_mode: RESTORE_DEFAULT_OFF
     on_turn_on:
+      - script.execute: flush_nvs
       - script.execute: alarm_confirm
     on_turn_off:
       - script.stop: alarm_ring
       - rtttl.stop:
       - light.turn_off: top_led
+      - script.execute: flush_nvs
       - lambda: |-
           id(alarm_active) = false;
           id(alarm_snoozed) = false;
       - script.execute: start_wake_word
       - lambda: |-
           id(alarm_status).publish_state("idle");
-          global_preferences->sync();
       - script.execute: reset_led
 
 # --- Settings ---
@@ -665,7 +666,7 @@ number:
     restore_value: true
     on_value:
       then:
-        - lambda: global_preferences->sync();
+        - script.execute: flush_nvs
         - if:
             condition:
               switch.is_on: alarm_enabled
@@ -686,7 +687,7 @@ number:
     restore_value: true
     on_value:
       then:
-        - lambda: global_preferences->sync();
+        - script.execute: flush_nvs
         - if:
             condition:
               switch.is_on: alarm_enabled
@@ -1010,6 +1011,12 @@ script:
       - delay: 2s
       - lambda: id(showing_volume) = false;
       - script.execute: reset_led
+
+  - id: flush_nvs
+    mode: restart
+    then:
+      - delay: 500ms
+      - lambda: global_preferences->sync();
 
   - id: push_to_talk_timeout
     mode: restart
