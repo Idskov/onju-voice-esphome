@@ -28,6 +28,7 @@ class LedColor(Enum):
     NO_CHANGE = "no_change"                           # va_active: don't touch LEDs
     ORANGE_TIMER = "orange/show_timer"              # timer countdown bar
     RED_ALARM = "red/pulse"                         # timer alarm
+    RED_ALARM_CLOCK = "red/fast_blink"              # alarm clock ringing
 
 
 class MediaPlayerState(Enum):
@@ -58,6 +59,7 @@ class DeviceState:
     active_timer_count: int = 0
     timer_led: bool = True
     va_active: bool = False
+    alarm_active: bool = False
     mic_capturing: bool = False
 
 
@@ -72,30 +74,34 @@ def reset_led(s: DeviceState) -> LedColor:
     if s.showing_volume:
         return LedColor.WHITE_VOLUME
 
-    # 2. Timer alarm
+    # 2. Alarm clock ringing
+    if s.alarm_active:
+        return LedColor.RED_ALARM_CLOCK
+
+    # 3. Timer alarm
     if s.timer_alarm_active:
         return LedColor.RED_ALARM
 
-    # 3. Voice pipeline active — don't overwrite listening/processing/responding LEDs
+    # 4. Voice pipeline active — don't overwrite listening/processing/responding LEDs
     if s.va_active:
         return LedColor.NO_CHANGE
 
-    # 4. Media playing
+    # 5. Media playing
     if s.media_player == MediaPlayerState.PLAYING:
         if s.music_light:
             return LedColor.TEAL_PLAYING
         else:
             return LedColor.OFF
 
-    # 5. Announcing (TTS)
+    # 6. Announcing (TTS)
     if s.media_player == MediaPlayerState.ANNOUNCING:
         return LedColor.GREEN_SPEAKING
 
-    # 6. Timer countdown
+    # 7. Timer countdown
     if s.active_timer_count > 0 and s.timer_led:
         return LedColor.ORANGE_TIMER
 
-    # 7. Wake word idle
+    # 8. Wake word idle
     if s.use_wake_word and s.flicker_wake_word and not s.mute_switch:
         return LedColor.PURPLE_TWINKLE
 
@@ -467,6 +473,38 @@ class TestTimerLed:
         assert dismiss_alarm(s) == LedColor.PURPLE_TWINKLE
 
 
+class TestAlarmClockLed:
+    """Alarm clock LED has higher priority than timer alarm."""
+
+    def test_alarm_clock_ringing_shows_red_fast_blink(self):
+        s = DeviceState(alarm_active=True)
+        assert reset_led(s) == LedColor.RED_ALARM_CLOCK
+
+    def test_alarm_clock_beats_timer_alarm(self):
+        s = DeviceState(alarm_active=True, timer_alarm_active=True)
+        assert reset_led(s) == LedColor.RED_ALARM_CLOCK
+
+    def test_alarm_clock_beats_voice_pipeline(self):
+        s = DeviceState(alarm_active=True, va_active=True)
+        assert reset_led(s) == LedColor.RED_ALARM_CLOCK
+
+    def test_alarm_clock_beats_music(self):
+        s = DeviceState(
+            alarm_active=True,
+            media_player=MediaPlayerState.PLAYING,
+            music_light=True,
+        )
+        assert reset_led(s) == LedColor.RED_ALARM_CLOCK
+
+    def test_volume_beats_alarm_clock(self):
+        s = DeviceState(alarm_active=True, showing_volume=True)
+        assert reset_led(s) == LedColor.WHITE_VOLUME
+
+    def test_alarm_not_active_no_effect(self):
+        s = DeviceState(alarm_active=False)
+        assert reset_led(s) != LedColor.RED_ALARM_CLOCK
+
+
 class TestExhaustive:
     """Exhaustive test: every combination must produce a valid LED state"""
 
@@ -481,36 +519,39 @@ class TestExhaustive:
                     for ww in [True, False]:
                         for ww_light in [True, False]:
                             for m_light in [True, False]:
-                                for alarm in [True, False]:
-                                    for timer_count in [0, 1]:
-                                        for va in [True, False]:
-                                            s = DeviceState(
-                                                media_player=mp,
-                                                showing_volume=vol,
-                                                mute_switch=mute,
-                                                use_wake_word=ww,
-                                                flicker_wake_word=ww_light,
-                                                music_light=m_light,
-                                                timer_alarm_active=alarm,
-                                                active_timer_count=timer_count,
-                                                va_active=va,
-                                            )
-                                            result = reset_led(s)
-                                            assert result in valid_leds, \
-                                                f"Invalid LED {result} for state {s}"
-                                            tested += 1
+                                for alarm_clock in [True, False]:
+                                    for alarm in [True, False]:
+                                        for timer_count in [0, 1]:
+                                            for va in [True, False]:
+                                                s = DeviceState(
+                                                    media_player=mp,
+                                                    showing_volume=vol,
+                                                    mute_switch=mute,
+                                                    use_wake_word=ww,
+                                                    flicker_wake_word=ww_light,
+                                                    music_light=m_light,
+                                                    alarm_active=alarm_clock,
+                                                    timer_alarm_active=alarm,
+                                                    active_timer_count=timer_count,
+                                                    va_active=va,
+                                                )
+                                                result = reset_led(s)
+                                                assert result in valid_leds, \
+                                                    f"Invalid LED {result} for state {s}"
+                                                tested += 1
 
-        # 3 × 2 × 2 × 2 × 2 × 2 × 2 × 2 × 2 = 768
-        assert tested == 768
+        # 3 × 2 × 2 × 2 × 2 × 2 × 2 × 2 × 2 × 2 = 1536
+        assert tested == 1536
 
     def test_priority_order(self):
-        """Verify: volume > alarm > va_active > playing > announcing > timer_countdown > wake_word > off"""
+        """Verify: volume > alarm_clock > timer_alarm > va_active > playing > announcing > timer_countdown > wake_word > off"""
         s = DeviceState(
             media_player=MediaPlayerState.PLAYING,
             showing_volume=True,
             use_wake_word=True,
             flicker_wake_word=True,
             music_light=True,
+            alarm_active=True,
             timer_alarm_active=True,
             active_timer_count=1,
             va_active=True,
@@ -518,8 +559,12 @@ class TestExhaustive:
         # Volume wins
         assert reset_led(s) == LedColor.WHITE_VOLUME
 
-        # Timer alarm next
+        # Alarm clock next
         s.showing_volume = False
+        assert reset_led(s) == LedColor.RED_ALARM_CLOCK
+
+        # Timer alarm next
+        s.alarm_active = False
         assert reset_led(s) == LedColor.RED_ALARM
 
         # Voice pipeline next (no-op)
