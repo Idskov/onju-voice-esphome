@@ -981,25 +981,25 @@ script:
                 rtttl: !lambda |-
                   auto tone = id(alarm_tone).current_option();
                   if (tone == "Gentle Rise") {
-                    return "gentle:d=4,o=5,b=100:c,p,e,p,g,p,c6,p,e6,p,g6";
+                    return "GentlRise:d=4,o=4,b=80:c,p,d,p,e,p,f,p,g,p,a,p,b,p,2c5";
                   } else if (tone == "Morning Melody") {
-                    return "morning:d=4,o=5,b=140:e,f#,g#,a,b,a,g#,f#,e";
+                    return "MornMeldy:d=8,o=5,b=120:e,g,a,g,e,c,d,e,d,c,4e,4g,2a";
                   } else if (tone == "Reveille") {
-                    return "reveille:d=8,o=5,b=140:g,c6,e6,c6,g,c6,e6,c6,g,c6,e6,g6,e6,c6";
+                    return "Reveille:d=8,o=5,b=140:g4,c,c,e,c,e,g,e,c,g4,c,c,e,c,e,4g";
                   } else if (tone == "Crazy Rooster") {
-                    return "rooster:d=16,o=6,b=200:c,d#,f,g,a#,g,f,d#,c,p,8g5,8a#5,8c,8d#";
+                    return "CrazyRstr:d=16,o=5,b=160:c,e,g,8c6,p,p,c,e,g,8c6,p,8e6,8c6,8e6,8g6";
                   } else if (tone == "Midnight Driveby") {
-                    return "driveby:d=4,o=4,b=180:16c5,16c5,16c5,8p,16c5,16c5,16c5,8p,2c5,2d5";
+                    return "MidDrvby:d=8,o=4,b=100:2f,p,2f,p,4f,4f,4f,p,2f,p,2f";
                   } else if (tone == "Angry Wasp") {
-                    return "wasp:d=16,o=6,b=240:c,d,c,d,c,d,e,f,e,f,e,f,g,a,g,a";
+                    return "AngryWasp:d=16,o=5,b=200:c,d,c,d,c#,d#,c#,d#,d,e,d,e,d#,f,d#,f,e,f#,e,f#,f,g,f,g";
                   } else if (tone == "Funeral March") {
-                    return "funeral:d=4,o=5,b=60:c,p,8c,c,8e,d,8d,c,8e,4d";
+                    return "FunrlMrch:d=4,o=4,b=60:c,c,c,8c,16d#,8c,16d#,2c,g,g,g,8g,16a#,8f,16d#,2c";
                   } else if (tone == "Drunk Clown") {
-                    return "clown:d=8,o=5,b=200:f#,a,4b,f#,a,4b,f#,a,b,c#6,d6,b,a,4g,e,g,4a,e,g,a,f#,4d";
+                    return "DrunkClwn:d=8,o=5,b=160:c,f#4,a4,f,d#,g#4,b4,4p,c,e,d,4p,a#4,d#,16p,c#,f,16p,e,a4";
                   } else if (tone == "Samba Wake") {
-                    return "samba:d=8,o=5,b=180:c,p,c,16c,c,p,a4,p,a4,16a4,a4,p,g4";
+                    return "SambaWake:d=8,o=5,b=180:e,p,16e,e,p,16e,g,e,c,d,p,16d,d,p,16d,f,d,a4,4e";
                   } else {
-                    return "alarm:d=8,o=6,b=200:c,e,g,c7,p,c7,g,e,c";
+                    return "ClasscAlm:d=16,o=6,b=200:c,c,c,c,p,p,c,c,c,c,p,p,c,c,c,c";
                   }
             - wait_until:
                 not:
