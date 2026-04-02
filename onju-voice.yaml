@@ -279,20 +279,48 @@ voice_assistant:
     - script.execute: start_wake_word
 
   on_timer_started:
-    - lambda: id(active_timer_count) += 1;
+    - lambda: |-
+        id(active_timer_count) += 1;
+        id(timer_status).publish_state("active");
     - script.execute: reset_led
 
   on_timer_finished:
     - lambda: |-
         id(active_timer_count) = std::max(0, id(active_timer_count) - 1);
+    - if:
+        condition:
+          lambda: return id(active_timer_count) == 0;
+        then:
+          - lambda: id(timer_status).publish_state("ringing");
+        else:
+          - lambda: id(timer_status).publish_state("ringing");
     - script.execute: timer_alarm
 
   on_timer_cancelled:
     - lambda: |-
         id(active_timer_count) = std::max(0, id(active_timer_count) - 1);
+    - if:
+        condition:
+          lambda: return id(active_timer_count) == 0;
+        then:
+          - lambda: id(timer_status).publish_state("idle");
     - script.execute: reset_led
 
   on_timer_tick:
+    - lambda: |-
+        auto timers = id(va).get_timers();
+        if (timers.empty()) return;
+        uint32_t min_remaining = UINT32_MAX;
+        for (const auto &t : timers) {
+          if (t.seconds_left < min_remaining) {
+            min_remaining = t.seconds_left;
+          }
+        }
+        int m = min_remaining / 60;
+        int s = min_remaining % 60;
+        char buf[16];
+        snprintf(buf, sizeof(buf), "active:%02d:%02d", m, s);
+        id(timer_status).publish_state(buf);
     - script.execute: reset_led
 
 # --- LEDs (6x SK6812) ---
@@ -566,7 +594,7 @@ switch:
       - script.execute: reset_led
 
   - platform: template
-    name: Timer LED
+    name: Timer LED Countdown
     id: timer_led
     entity_category: config
     optimistic: true
@@ -674,9 +702,15 @@ number:
     optimistic: true
     restore_value: true
 
-# --- Alarm status ---
+# --- Status sensors ---
 
 text_sensor:
+  - platform: template
+    id: timer_status
+    name: "Timer Status"
+    icon: "mdi:timer-outline"
+    update_interval: never
+
   - platform: template
     id: alarm_status
     name: "Alarm Status"
@@ -929,7 +963,9 @@ script:
     mode: single
     then:
       - rtttl.stop:
-      - lambda: id(timer_alarm_active) = false;
+      - lambda: |-
+          id(timer_alarm_active) = false;
+          id(timer_status).publish_state("idle");
       - script.execute: start_wake_word
       - script.execute: reset_led
 
