@@ -51,6 +51,26 @@ jobs:
             cp "$FACTORY" "onju-voice-beta.factory.bin"
           fi
 
+      - name: Generate update manifest
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          MD5=$(md5sum "onju-voice-beta.ota.bin" | cut -d' ' -f1)
+          cat > manifest.json <<EOF
+          {
+            "name": "Onju Voice",
+            "version": "${VERSION}",
+            "builds": [{
+              "chipFamily": "ESP32-S3",
+              "ota": {
+                "path": "onju-voice-beta.ota.bin",
+                "md5": "${MD5}",
+                "summary": "Beta — tested but unreleased",
+                "release_url": "https://github.com/${{ github.repository }}/releases/tag/beta"
+              }
+            }]
+          }
+          EOF
+
       - name: Update beta release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -80,4 +100,5 @@ jobs:
             --title "Beta — ${VERSION} (${COMMIT})" \
             --notes "$BODY" \
             --prerelease \
-            onju-voice-beta.*.bin
+            onju-voice-beta.*.bin \
+            manifest.json

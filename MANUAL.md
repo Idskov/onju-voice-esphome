@@ -11,6 +11,7 @@ Detailed guides for the Onju Voice ESPHome firmware. For installation and projec
 - [Voice Alarm Scheduling](#voice-alarm-scheduling)
 - [Timers](#timers)
 - [Music Streaming](#music-streaming)
+- [Firmware Updates](#firmware-updates)
 - [Touch Controls](#touch-controls)
 - [LED States](#led-states)
 
@@ -291,6 +292,29 @@ You can still use the voice assistant while music is playing:
 ### Music playback light
 
 The teal LED during music playback can be toggled with the **Music Playback Light** switch.
+
+## Firmware Updates
+
+The device can check for and install firmware updates directly from GitHub Releases — no ESPHome installation needed.
+
+### Automatic update checks
+
+The device polls for updates every 24 hours. When a new version is available, an **"Update available"** notification appears on the device's update entity in Home Assistant. Click **Install** to apply the update over-the-air.
+
+### Update channel
+
+The **Update Channel** select entity controls which firmware stream the device tracks:
+
+| Channel | Description |
+|---------|-------------|
+| **Stable** (default) | Official releases only |
+| **Beta** | Tested but unreleased builds from the dev branch |
+
+Switching channels triggers an immediate check against the new channel.
+
+### Manual OTA via browser
+
+The device runs a minimal web server on port 80. Navigate to the device's IP address in your browser to access the OTA upload page. Upload a `.ota.bin` file to flash manually.
 
 ## Touch Controls
 

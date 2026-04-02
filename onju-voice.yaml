@@ -75,6 +75,14 @@ logger:
 
 ota:
   - platform: esphome
+  - platform: http_request
+  - platform: web_server
+
+http_request:
+
+web_server:
+  port: 80
+  include_internal: false
 
 improv_serial:
 
@@ -780,6 +788,38 @@ select:
       - "Touch = snooze, voice = stop"
       - "Touch = snooze, hold = stop"
       - "Touch = stop"
+
+  - platform: template
+    name: "Update Channel"
+    id: update_channel
+    icon: "mdi:update"
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_option: "Stable"
+    options:
+      - "Stable"
+      - "Beta"
+    on_value:
+      then:
+        - lambda: |-
+            std::string url;
+            if (x == "Beta") {
+              url = "https://github.com/Idskov/onju-voice-esphome/releases/download/beta/manifest.json";
+            } else {
+              url = "https://github.com/Idskov/onju-voice-esphome/releases/latest/download/manifest.json";
+            }
+            id(firmware_update).set_source_url(url);
+        - component.update: firmware_update
+
+# --- Firmware update ---
+
+update:
+  - platform: http_request
+    name: "Firmware"
+    id: firmware_update
+    source: https://github.com/Idskov/onju-voice-esphome/releases/latest/download/manifest.json
+    update_interval: 24h
 
 # --- Globals ---
 

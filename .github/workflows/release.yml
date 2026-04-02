@@ -72,11 +72,33 @@ jobs:
             echo "WARNING: No factory binary found. OTA binary only."
           fi
 
+      - name: Generate update manifest
+        run: |
+          VERSION="${{ needs.release-please.outputs.tag_name }}"
+          MD5=$(md5sum "onju-voice-${VERSION}.ota.bin" | cut -d' ' -f1)
+          cat > manifest.json <<EOF
+          {
+            "name": "Onju Voice",
+            "version": "${VERSION#v}",
+            "builds": [{
+              "chipFamily": "ESP32-S3",
+              "ota": {
+                "path": "onju-voice-${VERSION}.ota.bin",
+                "md5": "${MD5}",
+                "summary": "Stable release",
+                "release_url": "https://github.com/${{ github.repository }}/releases/tag/${VERSION}"
+              }
+            }]
+          }
+          EOF
+
       - name: Upload binaries as artifacts
         uses: actions/upload-artifact@v4
         with:
           name: firmware
-          path: onju-voice-*.bin
+          path: |
+            onju-voice-*.bin
+            manifest.json
           if-no-files-found: error
 
   upload-firmware:
@@ -99,4 +121,5 @@ jobs:
           ls -la onju-voice-*.bin
           gh release upload "${{ needs.release-please.outputs.tag_name }}" \
             onju-voice-*.bin \
+            manifest.json \
             --clobber
