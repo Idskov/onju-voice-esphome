@@ -308,10 +308,10 @@ voice_assistant:
 
   on_timer_tick:
     - lambda: |-
-        auto timers = id(va).get_timers();
-        if (timers.empty()) return;
+        auto active_timers = id(va).get_timers();
+        if (active_timers.empty()) return;
         uint32_t min_remaining = UINT32_MAX;
-        for (const auto &t : timers) {
+        for (const auto &t : active_timers) {
           if (t.seconds_left < min_remaining) {
             min_remaining = t.seconds_left;
           }
