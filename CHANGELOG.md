@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.4.0](https://github.com/Idskov/onju-voice-esphome/compare/v1.3.1...v1.4.0) (2026-04-02)
+
+
+### Features
+
+* add timer status sensor, rename Timer LED ([9d7e9bb](https://github.com/Idskov/onju-voice-esphome/commit/9d7e9bbb6c9260bcb81f543e4050944a8ba5dd80))
+* **alarm:** add alarm clock to LED priority cascade ([c3dd37f](https://github.com/Idskov/onju-voice-esphome/commit/c3dd37fa46a2e2af08981d331cfee4e690357891))
+* **alarm:** add all alarm entities and scripts ([5af362f](https://github.com/Idskov/onju-voice-esphome/commit/5af362fde85a3984163e7ea93d480f6a4d360335))
+* **alarm:** add foundation — globals, time sync, status sensor ([a185565](https://github.com/Idskov/onju-voice-esphome/commit/a185565fd79ad505fb9d8193281e0fbc0efb633a))
+* **alarm:** add selectable timer tone ([#15](https://github.com/Idskov/onju-voice-esphome/issues/15)) ([878107e](https://github.com/Idskov/onju-voice-esphome/commit/878107eef0a2ef6e516a490b78089ee1a378a172))
+* **alarm:** add time trigger and ESPHome services ([bec8926](https://github.com/Idskov/onju-voice-esphome/commit/bec89269897ca55cc094f42fc383205f70c2c334))
+* **alarm:** finalize RTTTL alarm tone library ([5e1a47d](https://github.com/Idskov/onju-voice-esphome/commit/5e1a47d79337c5f1eff821078ff3027d160f37df))
+* **alarm:** update center touch cascade with alarm snooze/dismiss ([f5f9645](https://github.com/Idskov/onju-voice-esphome/commit/f5f96452510be67d437634bbfc561b8540c1a303))
+
+
+### Bug Fixes
+
+* **alarm:** cast service params to int for std::min/std::max ([8ad617e](https://github.com/Idskov/onju-voice-esphome/commit/8ad617e249a8ad208ec90f9e061cb94dbb1a4596))
+* **alarm:** delayed NVS flush for reliable power loss survival ([9962fc4](https://github.com/Idskov/onju-voice-esphome/commit/9962fc46a73fcc97e0c363e2aa3c9914659fdf1c))
+* **alarm:** flush NVS on each number change, not just alarm_confirm ([6a02349](https://github.com/Idskov/onju-voice-esphome/commit/6a023490d5961102c6df804666372531edbe81f5))
+* **alarm:** force NVS flush on alarm changes for power loss survival ([d8cd76e](https://github.com/Idskov/onju-voice-esphome/commit/d8cd76e9b67dcf5d71531700d0f836c52ee18a1e))
+* **alarm:** long press dismiss also works during snooze ([24a9e8f](https://github.com/Idskov/onju-voice-esphome/commit/24a9e8f4ae65ca006e29b354ff9524cf82f6c222))
+* **alarm:** number inputs as box mode, clearer dismiss mode labels ([4e80265](https://github.com/Idskov/onju-voice-esphome/commit/4e802650cbaacaef293b5b94ab3bde6551cd4715))
+* clear LED effect on alarm dismiss/snooze and VA cancel ([90f4379](https://github.com/Idskov/onju-voice-esphome/commit/90f4379f77507130f3132929d499e474b6041345))
+* compat workflow YAML syntax ([05aadf8](https://github.com/Idskov/onju-voice-esphome/commit/05aadf808e3ddbfb496ed0bcb41ea609115edb4c))
+* rename shadowed variable in timer_tick lambda ([d34187f](https://github.com/Idskov/onju-voice-esphome/commit/d34187f2d03a19b69ac3591203d38fbcd0a88dfb))
+* rewrite compat workflow — fix YAML multiline body strings ([d4e25ae](https://github.com/Idskov/onju-voice-esphome/commit/d4e25aeda5edbaa927e32a2fca1d2fe19014986e))
+* set initial state for timer and alarm status sensors ([4370871](https://github.com/Idskov/onju-voice-esphome/commit/437087108832e87b5beaa920ddf0700c7e230b12))
+
 ## [1.3.1](https://github.com/Idskov/onju-voice-esphome/compare/v1.3.0...v1.3.1) (2026-04-01)
 
 
