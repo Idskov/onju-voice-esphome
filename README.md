@@ -21,7 +21,7 @@ For detailed guides on alarm setup, voice scheduling, wake words, music streamin
 
 - [Onju Voice PCB](https://github.com/justLV/onju-voice) installed in a Google Nest Mini 2nd gen
 - Home Assistant 2024.7.0 or newer
-- ESPHome 2026.3.0 or newer
+- ESPHome 2026.2.0 or newer
 - A voice assistant pipeline configured in HA with STT and TTS
 
 ## Installation
