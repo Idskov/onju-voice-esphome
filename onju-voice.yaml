@@ -79,6 +79,8 @@ ota:
   - platform: web_server
 
 http_request:
+  buffer_size_rx: 4096
+  buffer_size_tx: 2048
 
 web_server:
   port: 80
