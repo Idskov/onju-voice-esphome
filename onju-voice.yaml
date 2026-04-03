@@ -24,7 +24,7 @@ esphome:
   min_version: 2026.2.0
   project:
     name: idskov.onju_voice
-    version: "1.4.0-dev" # x-release-please-version
+    version: "1.5.0-dev" # x-release-please-version
   platformio_options:
     board_build.flash_mode: dio
     board_build.arduino.memory_type: qio_opi
@@ -798,11 +798,16 @@ select:
     restore_value: true
     initial_option: "Stable"
     options:
+      - "Off"
       - "Stable"
       - "Beta"
     on_value:
       then:
         - lambda: |-
+            if (x == "Off") {
+              id(firmware_update).set_update_interval(0);
+              return;
+            }
             std::string url;
             if (x == "Beta") {
               url = "https://github.com/Idskov/onju-voice-esphome/releases/download/beta/manifest.json";
@@ -810,7 +815,12 @@ select:
               url = "https://github.com/Idskov/onju-voice-esphome/releases/latest/download/manifest.json";
             }
             id(firmware_update).set_source_url(url);
-        - component.update: firmware_update
+            id(firmware_update).set_update_interval(86400000);
+        - if:
+            condition:
+              lambda: return x != "Off";
+            then:
+              - component.update: firmware_update
 
 # --- Firmware update ---
 
