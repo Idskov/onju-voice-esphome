@@ -25,7 +25,7 @@ esphome:
   min_version: 2026.2.0
   project:
     name: idskov.onju_voice
-    version: "1.5.1-dev" # x-release-please-version
+    version: "1.4.0" # x-release-please-version
   platformio_options:
     board_build.flash_mode: dio
     board_build.arduino.memory_type: qio_opi
