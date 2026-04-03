@@ -1,5 +1,58 @@
 # Changelog
 
+## [1.5.0](https://github.com/Idskov/onju-voice-esphome/compare/v1.4.0...v1.5.0) (2026-04-03)
+
+
+### Features
+
+* add CI/CD pipeline for automated releases ([1ee12a6](https://github.com/Idskov/onju-voice-esphome/commit/1ee12a61cece847cfd1ed57f57f0db7734e92aee))
+* add disable_firmware_update substitution for encrypted setups ([a37a2de](https://github.com/Idskov/onju-voice-esphome/commit/a37a2de3fe11e2700a9e5481e20198bac317c165))
+* add firmware update system with stable/beta channels ([87b795a](https://github.com/Idskov/onju-voice-esphome/commit/87b795ae561a9efd9e9cfad312c965c2d77a5ab3)), closes [#24](https://github.com/Idskov/onju-voice-esphome/issues/24)
+* add party mode — music LED select with rainbow, fire, chase, strobe, cycle ([df3add0](https://github.com/Idskov/onju-voice-esphome/commit/df3add003c49cfc23121ffda41bef94e7c142e87))
+* add RTTTL component with alert_speaker mixer source ([1a937fe](https://github.com/Idskov/onju-voice-esphome/commit/1a937fec3133b23d9462ecada1c46c0ced1f7e2d))
+* add timer status sensor, rename Timer LED ([9d7e9bb](https://github.com/Idskov/onju-voice-esphome/commit/9d7e9bbb6c9260bcb81f543e4050944a8ba5dd80))
+* add voice timer support — countdown LED, RTTTL alarm, touch dismiss ([7ef3452](https://github.com/Idskov/onju-voice-esphome/commit/7ef3452091394a585f83b13cf6654d12810fcc71))
+* add volume click — RTTTL tone when idle, silent during playback ([6de6df0](https://github.com/Idskov/onju-voice-esphome/commit/6de6df03b5defd85dd98295508c5808d861a1974))
+* **alarm:** add alarm clock to LED priority cascade ([c3dd37f](https://github.com/Idskov/onju-voice-esphome/commit/c3dd37fa46a2e2af08981d331cfee4e690357891))
+* **alarm:** add all alarm entities and scripts ([5af362f](https://github.com/Idskov/onju-voice-esphome/commit/5af362fde85a3984163e7ea93d480f6a4d360335))
+* **alarm:** add foundation — globals, time sync, status sensor ([a185565](https://github.com/Idskov/onju-voice-esphome/commit/a185565fd79ad505fb9d8193281e0fbc0efb633a))
+* **alarm:** add selectable timer tone ([#15](https://github.com/Idskov/onju-voice-esphome/issues/15)) ([878107e](https://github.com/Idskov/onju-voice-esphome/commit/878107eef0a2ef6e516a490b78089ee1a378a172))
+* **alarm:** add time trigger and ESPHome services ([bec8926](https://github.com/Idskov/onju-voice-esphome/commit/bec89269897ca55cc094f42fc383205f70c2c334))
+* **alarm:** finalize RTTTL alarm tone library ([5e1a47d](https://github.com/Idskov/onju-voice-esphome/commit/5e1a47d79337c5f1eff821078ff3027d160f37df))
+* **alarm:** update center touch cascade with alarm snooze/dismiss ([f5f9645](https://github.com/Idskov/onju-voice-esphome/commit/f5f96452510be67d437634bbfc561b8540c1a303))
+* CI/CD pipeline for automated releases ([48d3678](https://github.com/Idskov/onju-voice-esphome/commit/48d3678dcfb26022def7c1186674a9b6664d8596))
+* **ci:** auto-bump dev version in beta workflow ([27747c7](https://github.com/Idskov/onju-voice-esphome/commit/27747c7e8ae114bb7be869f1899bc5751b4af877))
+
+
+### Bug Fixes
+
+* **alarm:** cast service params to int for std::min/std::max ([8ad617e](https://github.com/Idskov/onju-voice-esphome/commit/8ad617e249a8ad208ec90f9e061cb94dbb1a4596))
+* **alarm:** delayed NVS flush for reliable power loss survival ([9962fc4](https://github.com/Idskov/onju-voice-esphome/commit/9962fc46a73fcc97e0c363e2aa3c9914659fdf1c))
+* **alarm:** flush NVS on each number change, not just alarm_confirm ([6a02349](https://github.com/Idskov/onju-voice-esphome/commit/6a023490d5961102c6df804666372531edbe81f5))
+* **alarm:** force NVS flush on alarm changes for power loss survival ([d8cd76e](https://github.com/Idskov/onju-voice-esphome/commit/d8cd76e9b67dcf5d71531700d0f836c52ee18a1e))
+* **alarm:** long press dismiss also works during snooze ([24a9e8f](https://github.com/Idskov/onju-voice-esphome/commit/24a9e8f4ae65ca006e29b354ff9524cf82f6c222))
+* **alarm:** number inputs as box mode, clearer dismiss mode labels ([4e80265](https://github.com/Idskov/onju-voice-esphome/commit/4e802650cbaacaef293b5b94ab3bde6551cd4715))
+* **ci:** add workflow_dispatch trigger to beta workflow ([096f2cb](https://github.com/Idskov/onju-voice-esphome/commit/096f2cb2f27ce4310172bbe2f3382c8ddf3d61b0))
+* **ci:** split beta workflow into build + release jobs ([a98d4b6](https://github.com/Idskov/onju-voice-esphome/commit/a98d4b6e1ceb485ba4805c8605278d3980b15536))
+* clear LED effect on alarm dismiss/snooze and VA cancel ([90f4379](https://github.com/Idskov/onju-voice-esphome/commit/90f4379f77507130f3132929d499e474b6041345))
+* compat workflow YAML syntax ([05aadf8](https://github.com/Idskov/onju-voice-esphome/commit/05aadf808e3ddbfb496ed0bcb41ea609115edb4c))
+* correct release-please manifest to 1.4.0 ([87fc040](https://github.com/Idskov/onju-voice-esphome/commit/87fc0404c51844827c2bebfba3ab044116a95cba))
+* firmware build + release workflow consolidation ([af9ec02](https://github.com/Idskov/onju-voice-esphome/commit/af9ec0254e1c344403fe034b5a8b96dea28dc5c0))
+* gate handle-stable-result on new_version check ([58bfff8](https://github.com/Idskov/onju-voice-esphome/commit/58bfff8fad11fc5e7bec1418978838a913cdc3eb))
+* increase http_request buffer for GitHub redirect headers ([2a9dbad](https://github.com/Idskov/onju-voice-esphome/commit/2a9dbada6bf66b0d7bdc3ea55df7173908a94e2d))
+* LED hierarchy — voice pipeline wins over timer/music, proportional countdown, RTTTL gain ([bfe02e3](https://github.com/Idskov/onju-voice-esphome/commit/bfe02e3186568d9f95b5a235c16101ccc56d5e2e))
+* move firmware build into release workflow ([3b03655](https://github.com/Idskov/onju-voice-esphome/commit/3b036553f9e2f8b5a3bc88924044bbd8b67b95ff))
+* release-please config and compat workflow gates ([b7ec964](https://github.com/Idskov/onju-voice-esphome/commit/b7ec964f138c503269036090e767fc61758426fa))
+* remove party mode and volume click, keep timers + LED hierarchy ([dc02474](https://github.com/Idskov/onju-voice-esphome/commit/dc024740862c59cae8093f1de36eb511311fb9d1))
+* remove volume click — I2S bus conflict with MWW makes it unreliable ([66729cd](https://github.com/Idskov/onju-voice-esphome/commit/66729cdaecb62759b28501d15a2533549d6a4afb))
+* rename shadowed variable in timer_tick lambda ([d34187f](https://github.com/Idskov/onju-voice-esphome/commit/d34187f2d03a19b69ac3591203d38fbcd0a88dfb))
+* rewrite compat workflow — fix YAML multiline body strings ([d4e25ae](https://github.com/Idskov/onju-voice-esphome/commit/d4e25aeda5edbaa927e32a2fca1d2fe19014986e))
+* set initial state for timer and alarm status sensors ([4370871](https://github.com/Idskov/onju-voice-esphome/commit/437087108832e87b5beaa920ddf0700c7e230b12))
+* set min_version to 2026.2.0 (actual minimum) ([30eba03](https://github.com/Idskov/onju-voice-esphome/commit/30eba03a7a9d748188a9c11015eeed114218334b))
+* stop MWW before RTTTL alarm — I2S bus must be free for speaker ([66cd63c](https://github.com/Idskov/onju-voice-esphome/commit/66cd63cf45fb914253356e2916b9e5e3bd8ba105))
+* use random() % N for ESP-IDF, current_option() for select ([ae20381](https://github.com/Idskov/onju-voice-esphome/commit/ae203810b2795d6c9d6e198dba94c27737c54f31))
+* use string extra-files for release-please version detection ([90655a5](https://github.com/Idskov/onju-voice-esphome/commit/90655a589d022af91da7fd8b549c00666d57b0c4))
+
 ## [1.3.1](https://github.com/Idskov/onju-voice-esphome/compare/v1.3.0...v1.3.1) (2026-04-01)
 
 
