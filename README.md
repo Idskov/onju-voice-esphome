@@ -15,11 +15,13 @@ Built on native ESPHome components with no external dependencies — works with 
 - Follow-up conversation without repeating the wake word
 - Media player for music and TTS announcements from Home Assistant
 
+For detailed guides on alarm setup, voice scheduling, wake words, music streaming, and more — see the **[User Manual](MANUAL.md)**.
+
 ## Prerequisites
 
 - [Onju Voice PCB](https://github.com/justLV/onju-voice) installed in a Google Nest Mini 2nd gen
 - Home Assistant 2024.7.0 or newer
-- ESPHome 2026.3.0 or newer
+- ESPHome 2026.2.0 or newer
 - A voice assistant pipeline configured in HA with STT and TTS
 
 ## Installation
@@ -63,6 +65,7 @@ If you prefer to manage the config manually instead of using `dashboard_import`:
 substitutions:
   name: my-onju-voice
   friendly_name: Living Room Voice
+  disable_firmware_update: "true"  # recommended when using encryption
 
 packages:
   onju_voice: github://idskov/onju-voice-esphome/onju-voice.yaml@main
