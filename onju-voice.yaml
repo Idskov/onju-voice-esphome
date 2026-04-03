@@ -16,6 +16,7 @@
 substitutions:
   name: onju-voice
   friendly_name: Onju Voice
+  disable_firmware_update: "false"
 
 esphome:
   name: ${name}
@@ -796,6 +797,7 @@ select:
     id: update_channel
     icon: "mdi:update"
     entity_category: config
+    internal: ${disable_firmware_update}
     optimistic: true
     restore_value: true
     initial_option: "Stable"
@@ -830,6 +832,7 @@ update:
   - platform: http_request
     name: "Firmware"
     id: firmware_update
+    internal: ${disable_firmware_update}
     source: https://github.com/Idskov/onju-voice-esphome/releases/latest/download/manifest.json
     update_interval: 24h
 

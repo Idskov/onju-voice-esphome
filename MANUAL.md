@@ -71,6 +71,8 @@ ota:
 
 > **Note:** If your config references `ref: master`, update it to `ref: main`. The `master` branch is a mirror kept for backward compatibility.
 
+> **Important:** If you use API encryption, add `disable_firmware_update: "true"` to your substitutions to hide the firmware update entities. The pre-compiled firmware from GitHub Releases does not include your encryption key — installing it would remove encryption from your device. See [Firmware Updates](#firmware-updates) for details.
+
 ## Wake Words
 
 The firmware ships with two on-device wake word models: **"OK Nabu"** and **"Hey Jarvis"**. Both are loaded simultaneously — whichever is detected first triggers the voice pipeline.
@@ -307,10 +309,31 @@ The **Update Channel** select entity controls which firmware stream the device t
 
 | Channel | Description |
 |---------|-------------|
+| **Off** | Disable automatic update checks |
 | **Stable** (default) | Official releases only |
 | **Beta** | Tested but unreleased builds from the dev branch |
 
 Switching channels triggers an immediate check against the new channel.
+
+### Important: encryption and firmware updates
+
+The pre-compiled firmware from GitHub Releases is **generic** — it does not contain your API encryption key or OTA password. WiFi credentials and other NVS-stored settings (alarm, tones, etc.) survive the update, but encryption does not.
+
+**If you use ESPHome Dashboard** to manage your device with API encryption, you should disable the built-in firmware update entities to avoid accidentally replacing your encrypted firmware with the generic one. Add this to your device config:
+
+```yaml
+substitutions:
+  name: my-onju-voice
+  friendly_name: Living Room Voice
+  disable_firmware_update: "true"
+
+packages:
+  onju_voice: github://idskov/onju-voice-esphome/onju-voice.yaml@main
+```
+
+With this setting, firmware updates are managed through ESPHome Dashboard instead, which compiles with your device-specific config.
+
+**If you use pre-compiled firmware** (no ESPHome Dashboard), the update entity works as expected — your device runs without encryption and updates are seamless.
 
 ### Manual OTA via browser
 

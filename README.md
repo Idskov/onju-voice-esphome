@@ -65,6 +65,7 @@ If you prefer to manage the config manually instead of using `dashboard_import`:
 substitutions:
   name: my-onju-voice
   friendly_name: Living Room Voice
+  disable_firmware_update: "true"  # recommended when using encryption
 
 packages:
   onju_voice: github://idskov/onju-voice-esphome/onju-voice.yaml@main
