@@ -101,12 +101,17 @@ jobs:
           printf '%s' "$VERSION" > .esphome-compat-version
           git add .esphome-compat-version
           git commit -m "chore: verify ESPHome compat with ${VERSION}"
-          git push origin "$BRANCH"
-          gh pr create \
-            --base dev \
-            --head "$BRANCH" \
-            --title "chore: update ESPHome compat to ${VERSION}" \
-            --body "ESPHome ${VERSION} compiles successfully. Updates compat tracking file."
+          git push --force-with-lease origin "$BRANCH"
+          EXISTING_PR=$(gh pr list --head "$BRANCH" --base dev --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTING_PR" ]; then
+            echo "PR #${EXISTING_PR} already exists for this version, skipping."
+          else
+            gh pr create \
+              --base dev \
+              --head "$BRANCH" \
+              --title "chore: update ESPHome compat to ${VERSION}" \
+              --body "ESPHome ${VERSION} compiles successfully. Updates compat tracking file."
+          fi
 
       - name: Open issue on compile failure
         if: needs.compile-stable.outputs.compile_outcome == 'failure'
