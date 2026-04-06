@@ -9,7 +9,10 @@ static const char *TAG = "audio_state_manager";
 void AudioStateManager::setup() {
   ESP_LOGCONFIG(TAG, "Setting up AudioStateManager...");
   this->publish_state_();
-  this->fire_enter_triggers_(AudioState::STANDBY);
+  // Note: do NOT fire on_enter_standby triggers in setup().
+  // YAML scripts (on_boot, voice_assistant.on_client_connected) are
+  // responsible for the initial state activation. Firing triggers here
+  // causes duplicate start_wake_word calls and MWW ring buffer overflow.
 }
 
 void AudioStateManager::dump_config() {
