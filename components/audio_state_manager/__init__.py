@@ -93,7 +93,7 @@ FORCE_STANDBY_SCHEMA = cv.Schema({
 })
 
 
-@automation.register_action("audio_state_manager.request_state", RequestStateAction, REQUEST_STATE_SCHEMA)
+@automation.register_action("audio_state_manager.request_state", RequestStateAction, REQUEST_STATE_SCHEMA, synchronous=True)
 async def request_state_action_to_code(config, action_id, template_arg, args):
     parent = await cg.get_variable(config[CONF_ID])
     var = cg.new_Pvariable(action_id, template_arg, parent)
@@ -101,13 +101,13 @@ async def request_state_action_to_code(config, action_id, template_arg, args):
     return var
 
 
-@automation.register_action("audio_state_manager.pop_state", PopStateAction, POP_STATE_SCHEMA)
+@automation.register_action("audio_state_manager.pop_state", PopStateAction, POP_STATE_SCHEMA, synchronous=True)
 async def pop_state_action_to_code(config, action_id, template_arg, args):
     parent = await cg.get_variable(config[CONF_ID])
     return cg.new_Pvariable(action_id, template_arg, parent)
 
 
-@automation.register_action("audio_state_manager.force_standby", ForceStandbyAction, FORCE_STANDBY_SCHEMA)
+@automation.register_action("audio_state_manager.force_standby", ForceStandbyAction, FORCE_STANDBY_SCHEMA, synchronous=True)
 async def force_standby_action_to_code(config, action_id, template_arg, args):
     parent = await cg.get_variable(config[CONF_ID])
     return cg.new_Pvariable(action_id, template_arg, parent)

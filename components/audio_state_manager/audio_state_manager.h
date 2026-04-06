@@ -136,7 +136,7 @@ class RequestStateAction : public Action<Ts...> {
  public:
   RequestStateAction(AudioStateManager *parent) : parent_(parent) {}
   void set_state(uint8_t state) { this->state_ = static_cast<AudioState>(state); }
-  void play(Ts... x) override { this->parent_->request_state(this->state_); }
+  void play(const Ts &...x) override { this->parent_->request_state(this->state_); }
 
  protected:
   AudioStateManager *parent_;
@@ -147,7 +147,7 @@ template<typename... Ts>
 class PopStateAction : public Action<Ts...> {
  public:
   PopStateAction(AudioStateManager *parent) : parent_(parent) {}
-  void play(Ts... x) override { this->parent_->pop_state(); }
+  void play(const Ts &...x) override { this->parent_->pop_state(); }
 
  protected:
   AudioStateManager *parent_;
@@ -157,7 +157,7 @@ template<typename... Ts>
 class ForceStandbyAction : public Action<Ts...> {
  public:
   ForceStandbyAction(AudioStateManager *parent) : parent_(parent) {}
-  void play(Ts... x) override { this->parent_->force_standby(); }
+  void play(const Ts &...x) override { this->parent_->force_standby(); }
 
  protected:
   AudioStateManager *parent_;

@@ -58,6 +58,82 @@ esphome:
       - delay: 1s
       - script.execute: reset_led
 
+external_components:
+  - source:
+      type: local
+      path: components
+    components: [audio_state_manager]
+
+audio_state_manager:
+  id: audio_sm
+  status_text_sensor:
+    name: "Audio State"
+    id: audio_state_sensor
+
+  on_enter_standby:
+    - script.execute: start_wake_word
+    - script.execute: reset_led
+
+  on_exit_standby:
+    - script.execute: stop_wake_word
+
+  on_enter_listening:
+    - light.turn_on:
+        id: top_led
+        blue: 100%
+        red: 100%
+        green: 100%
+        brightness: 100%
+        effect: listening
+
+  on_enter_processing:
+    - light.turn_on:
+        id: top_led
+        blue: 100%
+        red: 0%
+        green: 20%
+        brightness: 70%
+        effect: processing
+
+  on_enter_responding:
+    - light.turn_on:
+        id: top_led
+        effect: speaking
+        red: 0%
+        green: 100%
+        blue: 0%
+
+  on_enter_music:
+    - light.turn_on:
+        id: top_led
+        effect: pulse
+        red: 0%
+        green: 70%
+        blue: 100%
+
+  on_exit_music:
+    - logger.log: "ASM: exiting MUSIC state"
+
+  on_enter_announcing:
+    - light.turn_on:
+        id: top_led
+        effect: speaking
+        red: 0%
+        green: 100%
+        blue: 0%
+
+  on_enter_alerting:
+    - light.turn_on:
+        id: top_led
+        effect: fast_blink
+        red: 100%
+        green: 0%
+        blue: 0%
+
+  on_exit_alerting:
+    - rtttl.stop:
+        id: buzzer
+
 dashboard_import:
   package_import_url: github://idskov/onju-voice-esphome/onju-voice.yaml@master
 
@@ -203,24 +279,21 @@ media_player:
       sample_rate: 16000
       num_channels: 1
     on_announcement:
-      - lambda: id(va_active) = false;
-      - if:
-          condition:
-            - microphone.is_capturing:
-          then:
-            - script.execute: stop_wake_word
-      - script.execute: reset_led
+      - audio_state_manager.request_state:
+          id: audio_sm
+          state: ANNOUNCING
     on_play:
+      - logger.log: "Media player: on_play (ASM handles state)"
+    on_idle:
       - if:
           condition:
-            - microphone.is_capturing:
+            lambda: |-
+              auto s = id(audio_sm).get_current_state();
+              return s == audio_state_manager::AudioState::RESPONDING ||
+                     s == audio_state_manager::AudioState::ANNOUNCING;
           then:
-            - script.execute: stop_wake_word
-      - script.execute: reset_led
-    on_idle:
-      - lambda: id(va_active) = false;
-      - script.execute: start_wake_word
-      - script.execute: reset_led
+            - audio_state_manager.force_standby:
+                id: audio_sm
 
 # --- Alerts (RTTTL) ---
 # Routes through alert_speaker in the mixer.
@@ -254,40 +327,37 @@ voice_assistant:
   volume_multiplier: 2.0
 
   on_client_connected:
-    - script.execute: start_wake_word
+    - audio_state_manager.force_standby:
+        id: audio_sm
   on_client_disconnected:
-    - script.execute: stop_wake_word
+    - audio_state_manager.force_standby:
+        id: audio_sm
 
   on_listening:
-    - lambda: id(va_active) = true;
-    - script.execute: push_to_talk_timeout
-    - light.turn_on:
-        id: top_led
-        blue: 100%
-        red: 100%
-        green: 100%
-        brightness: 100%
-        effect: listening
+    - audio_state_manager.request_state:
+        id: audio_sm
+        state: LISTENING
 
   on_stt_vad_end:
     - script.stop: push_to_talk_timeout
-    - light.turn_on:
-        id: top_led
-        blue: 100%
-        red: 0%
-        green: 20%
-        brightness: 70%
-        effect: processing
+    - audio_state_manager.request_state:
+        id: audio_sm
+        state: PROCESSING
 
   on_end:
-    # Don't reset LED or restart MWW here.
-    # on_idle in media_player handles both after speaker finishes.
-    []
+    - if:
+        condition:
+          lambda: |-
+            auto s = id(audio_sm).get_current_state();
+            return s == audio_state_manager::AudioState::LISTENING ||
+                   s == audio_state_manager::AudioState::PROCESSING;
+        then:
+          - audio_state_manager.force_standby:
+              id: audio_sm
 
   on_error:
-    - lambda: id(va_active) = false;
-    - script.execute: reset_led
-    - script.execute: start_wake_word
+    - audio_state_manager.force_standby:
+        id: audio_sm
 
   on_timer_started:
     - lambda: |-
@@ -542,8 +612,8 @@ binary_sensor:
                                 condition: voice_assistant.is_running
                                 then:
                                   - voice_assistant.stop:
-                                  - lambda: id(va_active) = false;
-                                  - script.execute: reset_led
+                                  - audio_state_manager.force_standby:
+                                      id: audio_sm
                                 else:
                                   - voice_assistant.start:
       - min_length: 1000ms
@@ -640,10 +710,10 @@ switch:
       - lambda: |-
           id(alarm_active) = false;
           id(alarm_snoozed) = false;
-      - script.execute: start_wake_word
+      - audio_state_manager.force_standby:
+          id: audio_sm
       - lambda: |-
           id(alarm_status).publish_state("idle");
-      - script.execute: reset_led
 
 # --- Settings ---
 
@@ -917,7 +987,11 @@ script:
                       else:
                         - if:
                             condition:
-                              lambda: return id(va_active);
+                              lambda: |-
+                                auto s = id(audio_sm).get_current_state();
+                                return s == audio_state_manager::AudioState::LISTENING ||
+                                       s == audio_state_manager::AudioState::PROCESSING ||
+                                       s == audio_state_manager::AudioState::RESPONDING;
                             then:
                               []
                             else:
@@ -987,7 +1061,9 @@ script:
     mode: single
     then:
       - lambda: id(timer_alarm_active) = true;
-      - script.execute: stop_wake_word
+      - audio_state_manager.request_state:
+          id: audio_sm
+          state: ALERTING
       - script.execute: reset_led
       - while:
           condition:
@@ -1029,8 +1105,8 @@ script:
       - lambda: |-
           id(timer_alarm_active) = false;
           id(timer_status).publish_state("idle");
-      - script.execute: start_wake_word
-      - script.execute: reset_led
+      - audio_state_manager.force_standby:
+          id: audio_sm
 
   - id: start_wake_word
     then:
@@ -1077,9 +1153,8 @@ script:
     mode: restart
     then:
       - delay: 15s
-      - voice_assistant.stop:
-      - script.execute: reset_led
-      - script.execute: start_wake_word
+      - audio_state_manager.force_standby:
+          id: audio_sm
 
   - id: alarm_confirm
     mode: restart
@@ -1105,12 +1180,14 @@ script:
       - lambda: |-
           id(alarm_active) = true;
           id(alarm_snoozed) = false;
+      - audio_state_manager.request_state:
+          id: audio_sm
+          state: ALERTING
       - if:
           condition:
             voice_assistant.is_running:
           then:
             - voice_assistant.stop:
-            - lambda: id(va_active) = false;
       - if:
           condition:
             lambda: return id(timer_alarm_active);
@@ -1121,7 +1198,6 @@ script:
             ->make_call()
             .set_command(media_player::MediaPlayerCommand::MEDIA_PLAYER_COMMAND_STOP)
             .perform();
-      - script.execute: stop_wake_word
       - lambda: |-
           id(alarm_status).publish_state("ringing");
       - script.execute: reset_led
@@ -1183,8 +1259,8 @@ script:
           brightness: 100%
           effect: none
       - delay: 1s
-      - script.execute: start_wake_word
-      - script.execute: reset_led
+      - audio_state_manager.force_standby:
+          id: audio_sm
 
   - id: alarm_clock_dismiss
     mode: single
@@ -1195,6 +1271,8 @@ script:
       - lambda: |-
           id(alarm_active) = false;
           id(alarm_snoozed) = false;
+      - audio_state_manager.force_standby:
+          id: audio_sm
       - if:
           condition:
             switch.is_on: alarm_enabled
@@ -1207,6 +1285,4 @@ script:
           else:
             - lambda: |-
                 id(alarm_status).publish_state("idle");
-      - script.execute: start_wake_word
-      - script.execute: reset_led
 
