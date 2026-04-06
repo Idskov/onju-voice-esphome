@@ -21,20 +21,12 @@ esphome:
       - delay: 3s
       - logger.log:
           level: INFO
-          format: "=== DUPLEX SPIKE: Starting speaker ==="
-      - media_player.play_media:
-          id: spike_media_player
-          media_url: "https://dl.espressif.com/dl/audio/gs-16b-2c-48000hz.mp3"
-      - delay: 2s
+          format: "=== DUPLEX SPIKE: Starting speaker via RTTTL ==="
+      - rtttl.play: "test:d=4,o=5,b=120:c,d,e,f,g,a,b,c6,c6,b,a,g,f,e,d,c"
+      - delay: 10s
       - logger.log:
           level: INFO
-          format: "=== DUPLEX SPIKE: Starting microphone ==="
-      - lambda: id(spike_mic).start();
-      - delay: 5s
-      - logger.log:
-          level: INFO
-          format: "=== DUPLEX SPIKE: Test window complete. Check logs above. ==="
-      - lambda: id(spike_mic).stop();
+          format: "=== DUPLEX SPIKE: RTTTL-only test complete (no mic) ==="
 
 esp32:
   board: esp32-s3-devkitc-1
@@ -67,7 +59,7 @@ wifi:
 
 api:
   encryption:
-    key: !secret api_key
+    key: !secret api_encryption_key
 
 ota:
   - platform: esphome
@@ -101,16 +93,15 @@ microphone:
     bits_per_sample: 32bit
     on_data:
       - lambda: |-
-          // Log mic data with speaker state to prove simultaneous operation.
+          // Log mic data to prove microphone receives data while speaker is active.
           // First 10 callbacks detailed, then every 50th for continuous monitoring.
           static int count = 0;
           static uint32_t total_bytes = 0;
           count++;
           total_bytes += x.size();
           if (count <= 10 || count % 50 == 0) {
-            bool speaker_playing = id(spike_media_player).state == media_player::MEDIA_PLAYER_STATE_PLAYING;
-            ESP_LOGI("spike", "Mic callback #%d: %d bytes (total: %u), speaker_playing=%s",
-                     count, x.size(), total_bytes, speaker_playing ? "YES" : "NO");
+            ESP_LOGI("spike", "Mic callback #%d: %d bytes (total: %u)",
+                     count, x.size(), total_bytes);
           }
 
 speaker:
@@ -124,15 +115,9 @@ speaker:
     bits_per_sample: 32bit
     buffer_duration: 100ms
 
-media_player:
-  - platform: speaker
-    id: spike_media_player
-    name: "Spike Media Player"
-    media_pipeline:
-      speaker: spike_speaker
-      format: FLAC
-      sample_rate: 48000
-      num_channels: 1
+rtttl:
+  id: spike_buzzer
+  speaker: spike_speaker
 
 # DAC unmute (active low on Onju Voice PCB)
 output:
