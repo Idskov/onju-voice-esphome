@@ -37,6 +37,8 @@ esphome:
           red: 100%
           green: 60%
           blue: 0%
+      # Start wake word detection early (matches main branch's media_player.on_idle)
+      - script.execute: start_wake_word
       - wait_until:
           condition:
             wifi.connected:
@@ -345,15 +347,10 @@ voice_assistant:
         state: PROCESSING
 
   on_end:
-    - if:
-        condition:
-          lambda: |-
-            auto s = id(audio_sm).get_current_state();
-            return s == audio_state_manager::AudioState::LISTENING ||
-                   s == audio_state_manager::AudioState::PROCESSING;
-        then:
-          - audio_state_manager.force_standby:
-              id: audio_sm
+    # Empty: media_player.on_idle handles cleanup after all audio finishes.
+    # Calling force_standby here would race with on_announcement (TTS playback)
+    # and cause "Parent I2S bus not free" errors.
+    []
 
   on_error:
     - audio_state_manager.force_standby:
