@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.1](https://github.com/Idskov/onju-voice-esphome/compare/v1.5.0...v1.5.1) (2026-04-07)
+
+
+### Bug Fixes
+
+* trigger release-please for v1.5.1 hotfix ([7e16cb8](https://github.com/Idskov/onju-voice-esphome/commit/7e16cb88d866edb8b755273fa8f4d976a1c3433b)), closes [#36](https://github.com/Idskov/onju-voice-esphome/issues/36)
+
 ## [1.5.0](https://github.com/Idskov/onju-voice-esphome/compare/v1.4.0...v1.5.0) (2026-04-03)
 
 
