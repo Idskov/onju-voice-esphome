@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.5.1](https://github.com/Idskov/onju-voice-esphome/compare/v1.5.0...v1.5.1) (2026-04-07)
+
+
+### Bug Fixes
+
+* **critical:** disable firmware update polling that broke wake word detection in v1.5.0 ([7cc9a3a](https://github.com/Idskov/onju-voice-esphome/commit/7cc9a3af09a2dec0ba8a86dd23e40f18ff4d9d0e)), closes [#36](https://github.com/Idskov/onju-voice-esphome/issues/36)
+
+### What's fixed
+
+v1.5.0 introduced a firmware update system that caused severe runtime issues on all devices:
+
+- **Wake word detection failed** — the `http_request` update polling continuously blocked the audio pipeline, causing `micro_wake_word` ring buffer overflows
+- **Log spam** — "Update check already in progress" messages flooded the logs every ~200ms
+- **Voice assistant unresponsive** — CPU/IO blocked by the update polling loop
+
+This release disables the automatic update polling (the Update Channel entity is now hidden and set to "Off"). Manual OTA via the web server on port 80 still works. The automatic update system will be re-enabled once the underlying issue is fixed — see [#36](https://github.com/Idskov/onju-voice-esphome/issues/36).
+
+### Upgrade instructions
+
+- **Home Assistant / ESPHome Dashboard:** trigger a manual update — the new firmware will be detected
+- **Manual:** download `onju-voice-v1.5.1.ota.bin` from this release and flash via the device web server (`http://<device-ip>/`)
+
 ## [1.5.0](https://github.com/Idskov/onju-voice-esphome/compare/v1.4.0...v1.5.0) (2026-04-03)
 
 
